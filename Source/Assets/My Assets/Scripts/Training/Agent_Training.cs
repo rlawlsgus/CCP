@@ -294,9 +294,42 @@ public class Agent_Training : Agent
     //One goal point and one spawn point
     private Vector3[] randomSpawnPoints()
     {
-        Vector3 goalPointRet;
+        Vector3 goalPointRet = Vector3.zero;
         Vector3 spawnPointRet = Vector3.zero;
-        if (this.manager.circularSpawn == true)
+
+        // [New] Custom Spawn Logic
+        if (this.manager.customSpawn)
+        {
+            // 1. Pick a random Spawn Point from Custom Spawn Areas
+            if (this.manager.customSpawnAreas != null && this.manager.customSpawnAreas.Count > 0)
+            {
+                Collider spawnCol = this.manager.customSpawnAreas[UnityEngine.Random.Range(0, this.manager.customSpawnAreas.Count)];
+                spawnPointRet = GetRandomPointInCollider(spawnCol);
+            }
+            else
+            {
+                // Fallback if no custom spawn areas found
+                spawnPointRet = transform.position;
+            }
+
+            // 2. Pick a random Goal Point from existing Goal Areas
+            if (this.goals != null && this.goals.Count > 0)
+            {
+                // Simple random selection
+                int limit = 10;
+                while (limit > 0)
+                {
+                    limit--;
+                    int randIdx = UnityEngine.Random.Range(0, this.goals.Count);
+                    Collider goalCol = this.goals[randIdx].goalCollider;
+                    goalPointRet = GetRandomPointInCollider(goalCol);
+                    
+                    if (Vector3.Distance(spawnPointRet, goalPointRet) > 10f)
+                        break;
+                }
+            }
+        }
+        else if (this.manager.circularSpawn == true)
         {
             Vector3[] circleRetPoints = getCircularPoints();
             spawnPointRet = circleRetPoints[0];
@@ -352,6 +385,16 @@ public class Agent_Training : Agent
         ret[0] = spawnPointRet;
         ret[1] = goalPointRet;
         return ret;
+    }
+
+    private Vector3 GetRandomPointInCollider(Collider col)
+    {
+        Bounds bounds = col.bounds;
+        return new Vector3(
+            UnityEngine.Random.Range(bounds.min.x, bounds.max.x),
+            0f,
+            UnityEngine.Random.Range(bounds.min.z, bounds.max.z)
+        );
     }
 
     //Observations that the agent receives at every step

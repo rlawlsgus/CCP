@@ -51,6 +51,12 @@ public class Monitor_Training : MonoBehaviour
     [Tooltip("Set goal point only opposite of spawn direction")]
     public bool oppositeGoal;
     //------------------------------
+    [Header("Custom Environment Only")]
+    [Tooltip("If enabled, agents spawn randomly within areas tagged 'SpawnPoint'.")]
+    public bool customSpawn;
+    [HideInInspector]
+    public List<Collider> customSpawnAreas;
+    //------------------------------
     [Header("Circular Environment Only")]
     [Tooltip("Spawn agents in a circular pattern in radius circularSpawnRadius")]
     public bool circularSpawn;
@@ -168,6 +174,20 @@ public class Monitor_Training : MonoBehaviour
         //Find all goal and spawn areas in scene
         this.goalAreas = new List<GoalAndSpawn>();
         initializeGoalAreas();
+        
+        // [New] Custom Spawn Initialization
+        if (customSpawn)
+        {
+            customSpawnAreas = new List<Collider>();
+            GameObject[] spawns = GameObject.FindGameObjectsWithTag("SpawnPoint");
+            foreach(var go in spawns)
+            {
+                Collider col = go.GetComponent<Collider>();
+                if (col != null) customSpawnAreas.Add(col);
+            }
+            if (customSpawnAreas.Count == 0) Debug.LogWarning("Custom Spawn enabled but no 'SpawnPoint' objects found!");
+        }
+
         //Find all interaction objects, GameObject under "Obstacles"
         this.interactionObjects = getInteractionObjects();
         // Create Agents

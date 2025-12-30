@@ -20,6 +20,15 @@ TagManager:
   - InterestParent
   - WeightsCollider
   - Interaction
+  - sidewalk
+  - road
+  - Building
+  - crosswalk
+  - Vehicle
+  - Entarance
+  - Agent
+  - inside
+  - SpawnPoint
   layers:
   - Default
   - TransparentFX

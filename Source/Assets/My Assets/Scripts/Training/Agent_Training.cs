@@ -15,7 +15,7 @@ public class Agent_Training : Agent
     public float moveSpeed = 0.1f;
     private Rigidbody AgentRb;
     private Vector3 startingPos;
-    private Vector3 goalPos;
+    public Vector3 goalPos;
     private float goalDistance;
     [Header("Reward Parameters")]
     public float currentGoalDistance;
@@ -40,7 +40,9 @@ public class Agent_Training : Agent
     Monitor_Training manager;
     //Save Route
     List<float[]> route;
-    private int countEpisode;
+    public int countEpisode;
+    public bool lastEpisodeSuccess = false;
+    public bool reachedGoal = false; // [New] Explicit goal tracking
     private int localPhase = 1;
     public float goalWeight;
     public float collWeight;
@@ -63,6 +65,10 @@ public class Agent_Training : Agent
         this.inWeightRegion = false;
         this.AgentRb = this.GetComponent<Rigidbody>();
         this.manager = GameObject.Find("Environment").GetComponent<Monitor_Training>();
+        
+        // [New] Find SocialTaskCompletionRate
+        // Removed as per user request to not look for script here
+
         if (this.manager.saveRoutes)
             this.route = new List<float[]>();
         this.agentParent = GameObject.Find("Agents").transform;
@@ -76,6 +82,7 @@ public class Agent_Training : Agent
     //Run every time a new episode starts
     public override void OnEpisodeBegin()
     {
+        this.reachedGoal = false; // [New] Reset goal status
         if (setMultiBehaviourWeights())
             this.localOppositeGoal = true;
         this.inWeightRegion = false;
@@ -555,6 +562,8 @@ public class Agent_Training : Agent
         {
             AddReward(+1f * this.goalWeight);
             Debug.Log("Goal");
+            this.lastEpisodeSuccess = true;
+            this.reachedGoal = true; // [New]
             EpisodeEnded();
         }
 
@@ -604,7 +613,7 @@ public class Agent_Training : Agent
                 string name = this.agentID + "_" + this.countEpisode;
                 this.manager.saveRoute(this.startingPos, this.goalPos, this.collisionsCount, name, GetCumulativeReward(), this.route);
             }
-            Destroy(this.gameObject);
+            this.gameObject.SetActive(false);
             return;
         }
         if (this.manager.saveRoutes && this.manager.stopSaving)
@@ -716,7 +725,11 @@ public class Agent_Training : Agent
             AddReward(-0.5f * this.collWeight);
             this.collisionsCount++;
             if (this.gameObject.name.Contains("Demo") == false)
+            {
+                this.lastEpisodeSuccess = false;
+                this.reachedGoal = false; // [New]
                 EpisodeEnded();
+            }
         }
     }
 

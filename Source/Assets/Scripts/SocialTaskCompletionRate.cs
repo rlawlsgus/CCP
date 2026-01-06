@@ -17,6 +17,8 @@ public class SocialTaskCompletionRate : MonoBehaviour
     [Header("Environment Settings")]
     [Tooltip("The parent object containing all Danger Zone cubes. Will auto-find 'Danger Zones' if null.")]
     public Transform dangerZonesRoot;
+    [Tooltip("The parent object containing all Obstacle cubes. Will auto-find 'Obstacles' if null.")]
+    public Transform obstaclesRoot;
 
     [Header("Trajectory Map Settings")]
     public bool enableTrajectoryMap = true;
@@ -26,11 +28,13 @@ public class SocialTaskCompletionRate : MonoBehaviour
     public Color normalPathColor = Color.red;
     public Color dangerPathColor = Color.yellow;
     public Color dangerZoneOutlineColor = Color.blue;
+    public Color obstacleOutlineColor = new Color(1f, 0.5f, 0f); // Orange
     public string mapFileName = "SocialTrajectoryMap.png";
     public float minRecordDistance = 0.1f;
     public int endPointRadius = 10;
 
     private List<BoxCollider> dangerZoneColliders = new List<BoxCollider>();
+    private List<BoxCollider> obstacleColliders = new List<BoxCollider>();
     private float searchTimer = 0f;
 
     public struct TrajectoryPoint
@@ -51,6 +55,7 @@ public class SocialTaskCompletionRate : MonoBehaviour
         public float totalTime;
         public float dangerTime;
         public Collider agentCollider;
+        public bool hasReachedGoal; // Cache success status
         public List<TrajectoryPoint> trajectory = new List<TrajectoryPoint>();
     }
 
@@ -80,6 +85,27 @@ public class SocialTaskCompletionRate : MonoBehaviour
         {
             Debug.LogWarning("[SocialTaskCompletionRate] 'Danger Zones' object not found in scene and not assigned.");
         }
+
+        // Auto-find Obstacles if not assigned
+        if (obstaclesRoot == null)
+        {
+            GameObject foundObj = GameObject.Find("Obstacles");
+            if (foundObj != null)
+            {
+                obstaclesRoot = foundObj.transform;
+            }
+        }
+
+        // Find all BoxColliders in the Obstacles Root
+        if (obstaclesRoot != null)
+        {
+            obstacleColliders = obstaclesRoot.GetComponentsInChildren<BoxCollider>().ToList();
+            Debug.Log($"[SocialTaskCompletionRate] Found {obstacleColliders.Count} obstacle colliders under '{obstaclesRoot.name}'.");
+        }
+        else
+        {
+            Debug.LogWarning("[SocialTaskCompletionRate] 'Obstacles' object not found in scene and not assigned.");
+        }
     }
 
     void Update()
@@ -98,7 +124,7 @@ public class SocialTaskCompletionRate : MonoBehaviour
 
     private void SearchForAgents()
     {
-        // [New] Search by iterating children of "Agents" parent object
+        // Search by iterating children of "Agents" parent object
         // This ensures we find INACTIVE agents too (which FindObjectsOfType misses).
         GameObject agentsParent = GameObject.Find("Agents");
         if (agentsParent == null) return;
@@ -110,12 +136,11 @@ public class SocialTaskCompletionRate : MonoBehaviour
             if (trackingData.ContainsKey(child)) continue;
 
             Agent_Training agentScript = child.GetComponent<Agent_Training>();
-            if (agentScript != null)
+            Agent_GoalOnly_Training goalOnlyScript = child.GetComponent<Agent_GoalOnly_Training>();
+
+            if (agentScript != null || goalOnlyScript != null)
             {
                 // We need a collider to track danger zone entry
-                // Note: The collider might be on a child object "Colliders/BodyCollider" or on the agent itself.
-                // The original code looked for GetComponent<Collider>() on the agent object.
-                // If Agent_Training is on the root, check for collider there.
                 Collider col = child.GetComponent<Collider>();
 
                 // If main collider is not on root, try finding it in children
@@ -134,20 +159,6 @@ public class SocialTaskCompletionRate : MonoBehaviour
         }
     }
 
-    private bool IsMatchingPrefab(string objectName)
-    {
-        foreach (var prefab in agentPrefabs)
-        {
-            if (prefab == null) continue;
-            // Check if object name starts with prefab name (handles "Name" and "Name(Clone)")
-            if (objectName.Contains(prefab.name))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private void UpdateAgentStats()
     {
         foreach (var kvp in trackingData)
@@ -156,6 +167,23 @@ public class SocialTaskCompletionRate : MonoBehaviour
             AgentTrackingData data = kvp.Value;
 
             if (agent == null) continue; // Agent might be destroyed
+
+            // [Moved] Check and cache reachedGoal status BEFORE checking active status
+            // This ensures we catch the success flag even if the agent deactivates/destroys itself in the same frame.
+            if (!data.hasReachedGoal)
+            {
+                Agent_Training agentScript = agent.GetComponent<Agent_Training>();
+                Agent_GoalOnly_Training goalOnlyScript = agent.GetComponent<Agent_GoalOnly_Training>();
+                if (agentScript != null && agentScript.reachedGoal)
+                {
+                    data.hasReachedGoal = true;
+                }
+                else if (goalOnlyScript != null && goalOnlyScript.reachedGoal)
+                {
+                    data.hasReachedGoal = true;
+                }
+            }
+
             if (!agent.gameObject.activeInHierarchy) continue; // Agent finished (one episode only)
 
             // Increment Total Time
@@ -181,29 +209,46 @@ public class SocialTaskCompletionRate : MonoBehaviour
         }
     }
 
-    // Check if the agent collider overlaps any of the danger zone colliders
+    // Check if the agent collider overlaps any of the danger zone or obstacle colliders
     private bool IsInDangerZone(Collider agentCollider)
     {
         if (agentCollider == null) return false;
 
+        // Check Danger Zones
         foreach (var col in dangerZoneColliders)
         {
             if (col != null && col.enabled)
             {
-                // 1. Fast AABB Check
-                if (agentCollider.bounds.Intersects(col.bounds))
-                {
-                    // 2. Precise Collision Check
-                    Vector3 direction;
-                    float distance;
-                    if (Physics.ComputePenetration(
-                        agentCollider, agentCollider.transform.position, agentCollider.transform.rotation,
-                        col, col.transform.position, col.transform.rotation,
-                        out direction, out distance))
-                    {
-                        return true;
-                    }
-                }
+                if (CheckCollision(agentCollider, col)) return true;
+            }
+        }
+
+        // Check Obstacles
+        foreach (var col in obstacleColliders)
+        {
+            if (col != null && col.enabled)
+            {
+                if (CheckCollision(agentCollider, col)) return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool CheckCollision(Collider agentCollider, Collider targetCollider)
+    {
+        // 1. Fast AABB Check
+        if (agentCollider.bounds.Intersects(targetCollider.bounds))
+        {
+            // 2. Precise Collision Check
+            Vector3 direction;
+            float distance;
+            if (Physics.ComputePenetration(
+                agentCollider, agentCollider.transform.position, agentCollider.transform.rotation,
+                targetCollider, targetCollider.transform.position, targetCollider.transform.rotation,
+                out direction, out distance))
+            {
+                return true;
             }
         }
         return false;
@@ -231,21 +276,11 @@ public class SocialTaskCompletionRate : MonoBehaviour
 
         foreach (var kvp in trackingData)
         {
-            Transform agent = kvp.Key;
             AgentTrackingData data = kvp.Value;
-
-            if (agent == null) continue;
-
             totalAgents++;
 
-            // Check success status from Agent_Training script
-            Agent_Training agentScript = agent.GetComponent<Agent_Training>();
-            bool isSuccess = false;
-            if (agentScript != null)
-            {
-                // [New] Use reachedGoal variable
-                isSuccess = agentScript.reachedGoal;
-            }
+            // Use cached success status
+            bool isSuccess = data.hasReachedGoal;
 
             float rate = CalculateRate(data);
 
@@ -254,16 +289,11 @@ public class SocialTaskCompletionRate : MonoBehaviour
                 successCount++;
                 successfulAgentSafeRates.Add(rate);
             }
-
-            // Optional: Print individual status for debug
-            // string status = isSuccess ? "Success" : "Fail/Incomplete";
-            // Debug.Log($"Agent: {agent.name} | Status: {status} | Safe Rate: {rate * 100:F2}%");
         }
 
         float successRate = totalAgents > 0 ? (float)successCount / totalAgents : 0f;
         float avgSuccessSafeRate = successfulAgentSafeRates.Count > 0 ? successfulAgentSafeRates.Average() : 0f;
 
-        // [New] Format requested by user
         Debug.Log($"Success Rate: {successRate * 100:F2}% | Average Safe Rate (Successes): {avgSuccessSafeRate * 100:F2}%");
 
         Debug.Log("==========================================");
@@ -286,7 +316,41 @@ public class SocialTaskCompletionRate : MonoBehaviour
         float minZ = -mapHeight / 2f;
 
         // 1. Draw Danger Zones (Blue Outline)
-        foreach (var col in dangerZoneColliders)
+        DrawColliders(texture, dangerZoneColliders, dangerZoneOutlineColor, minX, minZ);
+
+        // 2. Draw Obstacles (Orange Outline)
+        DrawColliders(texture, obstacleColliders, obstacleOutlineColor, minX, minZ);
+
+        // 3. Draw Trajectories
+        foreach (var kvp in trackingData)
+        {
+            List<TrajectoryPoint> path = kvp.Value.trajectory;
+            if (path.Count < 2) continue;
+
+            Vector2 prevPixel = WorldToPixel(path[0].position, minX, minZ);
+
+            for (int i = 1; i < path.Count; i++)
+            {
+                Vector2 currentPixel = WorldToPixel(path[i].position, minX, minZ);
+                Color color = path[i].isDanger ? dangerPathColor : normalPathColor;
+                DrawLine(texture, prevPixel, currentPixel, color, 3);
+                prevPixel = currentPixel;
+            }
+
+            // Draw End Point Circle
+            DrawCircle(texture, prevPixel, endPointRadius, normalPathColor);
+        }
+
+        texture.Apply();
+        byte[] bytes = texture.EncodeToPNG();
+        string pathToFile = Path.Combine(Application.dataPath, mapFileName);
+        File.WriteAllBytes(pathToFile, bytes);
+        Debug.Log($"[SocialTaskCompletionRate] Trajectory map saved to: {pathToFile}");
+    }
+
+    private void DrawColliders(Texture2D texture, List<BoxCollider> colliders, Color color, float minX, float minZ)
+    {
+        foreach (var col in colliders)
         {
             if (col == null) continue;
 
@@ -307,43 +371,11 @@ public class SocialTaskCompletionRate : MonoBehaviour
             Vector2 px3 = WorldToPixel(p3, minX, minZ);
             Vector2 px4 = WorldToPixel(p4, minX, minZ);
 
-            DrawLine(texture, px1, px2, dangerZoneOutlineColor, 2);
-            DrawLine(texture, px2, px3, dangerZoneOutlineColor, 2);
-            DrawLine(texture, px3, px4, dangerZoneOutlineColor, 2);
-            DrawLine(texture, px4, px1, dangerZoneOutlineColor, 2);
+            DrawLine(texture, px1, px2, color, 2);
+            DrawLine(texture, px2, px3, color, 2);
+            DrawLine(texture, px3, px4, color, 2);
+            DrawLine(texture, px4, px1, color, 2);
         }
-
-        // 2. Draw Trajectories
-        foreach (var kvp in trackingData)
-        {
-            List<TrajectoryPoint> path = kvp.Value.trajectory;
-            if (path.Count < 2) continue;
-
-            Vector2 prevPixel = WorldToPixel(path[0].position, minX, minZ);
-
-            for (int i = 1; i < path.Count; i++)
-            {
-                Vector2 currentPixel = WorldToPixel(path[i].position, minX, minZ);
-
-                // Color based on the status of the current point (or previous)
-                // If the segment is "in danger", draw yellow.
-                // We use the status of the point we are going TO, or FROM. 
-                // Let's use logic: If I am standing in danger, the path I tread is danger.
-                Color color = path[i].isDanger ? dangerPathColor : normalPathColor;
-
-                DrawLine(texture, prevPixel, currentPixel, color, 3);
-                prevPixel = currentPixel;
-            }
-
-            // Draw End Point Circle
-            DrawCircle(texture, prevPixel, endPointRadius, normalPathColor);
-        }
-
-        texture.Apply();
-        byte[] bytes = texture.EncodeToPNG();
-        string pathToFile = Path.Combine(Application.dataPath, mapFileName);
-        File.WriteAllBytes(pathToFile, bytes);
-        Debug.Log($"[SocialTaskCompletionRate] Trajectory map saved to: {pathToFile}");
     }
 
     private Vector2 WorldToPixel(Vector3 worldPos, float minX, float minZ)
@@ -386,76 +418,39 @@ public class SocialTaskCompletionRate : MonoBehaviour
     }
 
     private void DrawBrush(Texture2D tex, int x, int y, Color col, int thickness)
-
     {
-
         int half = thickness / 2;
-
         for (int i = -half; i <= half; i++)
-
         {
-
             for (int j = -half; j <= half; j++)
-
             {
-
                 if (x + i >= 0 && x + i < tex.width && y + j >= 0 && y + j < tex.height)
-
                 {
-
                     tex.SetPixel(x + i, y + j, col);
-
                 }
-
             }
-
         }
-
     }
-
-
 
     private void DrawCircle(Texture2D tex, Vector2 center, int radius, Color col)
-
     {
-
         int cx = (int)center.x;
-
         int cy = (int)center.y;
 
-
-
         for (int x = -radius; x <= radius; x++)
-
         {
-
             for (int y = -radius; y <= radius; y++)
-
             {
-
                 if (x * x + y * y <= radius * radius)
-
                 {
-
                     int px = cx + x;
-
                     int py = cy + y;
-
                     if (px >= 0 && px < tex.width && py >= 0 && py < tex.height)
-
                     {
-
                         tex.SetPixel(px, py, col);
-
                     }
-
                 }
-
             }
-
         }
-
     }
-
 }
-

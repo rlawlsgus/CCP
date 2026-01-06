@@ -27,7 +27,7 @@ public class Agent_GoalOnly_Training : Agent
     //General Parameters
     public float reward;
     private GameObject[] spawnAreas;
-    private List<Monitor_OnlyGoal_Training.GoalAndSpawn> goals;
+    private List<Monitor_Training.GoalAndSpawn> goals;
     private Transform agentParent;
     private List<GameObject> agents;
     public GameObject closestAgent;
@@ -38,7 +38,7 @@ public class Agent_GoalOnly_Training : Agent
     public float closeAgents = 0;
     public bool initial = true;
     //Weights Manager
-    Monitor_OnlyGoal_Training manager;
+    Monitor_Training manager;
     //Save Route
     List<float[]> route;
     private int countEpisode;
@@ -50,15 +50,22 @@ public class Agent_GoalOnly_Training : Agent
     private bool inWeightRegion;
     private int collisionsCount = 0;
     public GameObject[] weightRegionColliders;
+    public bool reachedGoal = false; // [New] Explicit goal tracking
+    private bool localOppositeGoal = false;
 
     private float[] startingWeights;
+
+    private void Awake()
+    {
+        this.agentID = (int)transform.position.y;
+    }
 
     //Run only one time once scene starts
     public override void Initialize()
     {
         this.inWeightRegion = false;
         this.AgentRb = this.GetComponent<Rigidbody>();
-        this.manager = GameObject.Find("Environment").GetComponent<Monitor_OnlyGoal_Training>();
+        this.manager = GameObject.Find("Environment").GetComponent<Monitor_Training>();
         if (this.manager.saveRoutes)
             this.route = new List<float[]>();
         this.agentParent = GameObject.Find("Agents").transform;
@@ -72,6 +79,7 @@ public class Agent_GoalOnly_Training : Agent
     //Run every time a new episode starts
     public override void OnEpisodeBegin()
     {
+        this.reachedGoal = false; // [New]
         this.inWeightRegion = false;
         this.startingWeights = new float[] { this.manager.goalMax, 2.5f, this.manager.interMin, -2.0f };
         // If first time initalize a spawn and a goal point
@@ -138,7 +146,8 @@ public class Agent_GoalOnly_Training : Agent
             }
         }
 
-        if (this.manager.demoScenes == false) {
+        if (this.manager.demoScenes == false)
+        {
             this.goalWeight = this.manager.goalWeight;
             this.collWeight = this.manager.collisionWeight;
             this.interWeight = this.manager.interactWeight;
@@ -146,7 +155,7 @@ public class Agent_GoalOnly_Training : Agent
         }
         else
         {
-            if(this.inWeightRegion == false)
+            if (this.inWeightRegion == false)
             {
                 this.goalWeight = this.startingWeights[0];
                 this.collWeight = this.startingWeights[1];
@@ -157,12 +166,12 @@ public class Agent_GoalOnly_Training : Agent
             {
                 if (this.manager.multiBehaviors == true)
                 {
-                    float goalAgents = (int) (this.manager.goalPercentage * this.manager.numOfAgents) / 100;
+                    float goalAgents = (int)(this.manager.goalPercentage * this.manager.numOfAgents) / 100;
                     float groupAgents = (int)(this.manager.groupPercentage * this.manager.numOfAgents) / 100;
                     float interactAgents = (int)(this.manager.interactionPercentage * this.manager.numOfAgents) / 100;
 
                     List<float[]> ratios = new List<float[]>();
-                    ratios.Add(new float[] { goalAgents , 1.8f, 2f, -5f, -2f});
+                    ratios.Add(new float[] { goalAgents, 1.8f, 2f, -5f, -2f });
                     ratios.Add(new float[] { interactAgents, 0.1f, 2f, 5f, 0f });
                     ratios.Add(new float[] { groupAgents, 0.1f, 1.5f, -2f, 5f });
                     ratios.Sort((p1, p2) => p1[0].CompareTo(p2[0]));
@@ -208,7 +217,7 @@ public class Agent_GoalOnly_Training : Agent
         if (this.manager.saveRoutes && this.manager.stopSaving)
         {
             EpisodeEnded();
-            Destroy(this.gameObject);
+            this.gameObject.SetActive(false);
         }
         this.reward = GetCumulativeReward();
     }
@@ -233,7 +242,7 @@ public class Agent_GoalOnly_Training : Agent
                 list.Add(point);
             }
 
-        int index = (int)(normalizeInRange(this.agentID, 0, agentsCount) * (list.Count-1));
+        int index = (int)(normalizeInRange(this.agentID, 0, agentsCount) * (list.Count - 1));
         return list[index];
     }
 
@@ -242,15 +251,15 @@ public class Agent_GoalOnly_Training : Agent
         float angleStep = 360f / this.manager.numOfAgents;
         Vector3[] retPoints = new Vector3[2];
 
-        retPoints[0].x = this.manager.circularSpawnRadius * (float) Mathf.Sin(this.agentID * angleStep * Mathf.Deg2Rad);
+        retPoints[0].x = this.manager.circularSpawnRadius * (float)Mathf.Sin(this.agentID * angleStep * Mathf.Deg2Rad);
         retPoints[0].y = 0;
-        retPoints[0].z = this.manager.circularSpawnRadius * (float) Mathf.Cos(this.agentID * angleStep * Mathf.Deg2Rad);
+        retPoints[0].z = this.manager.circularSpawnRadius * (float)Mathf.Cos(this.agentID * angleStep * Mathf.Deg2Rad);
 
         retPoints[1] = -1f * retPoints[0];
         return retPoints;
     }
 
-    static int SortGoalsByName(Monitor_OnlyGoal_Training.GoalAndSpawn g1, Monitor_OnlyGoal_Training.GoalAndSpawn g2)
+    static int SortGoalsByName(Monitor_Training.GoalAndSpawn g1, Monitor_Training.GoalAndSpawn g2)
     {
         return g1.goalCollider.gameObject.name.CompareTo(g2.goalCollider.gameObject.name);
     }
@@ -259,15 +268,49 @@ public class Agent_GoalOnly_Training : Agent
     //One goal point and one spawn point
     private Vector3[] randomSpawnPoints()
     {
-        Vector3 goalPointRet;
+        Vector3 goalPointRet = Vector3.zero;
         Vector3 spawnPointRet = Vector3.zero;
-        if (this.manager.circularSpawn == true)
+
+        // [New] Custom Spawn Logic
+        if (this.manager.customSpawn)
+        {
+            // 1. Pick a random Spawn Point from Custom Spawn Areas
+            if (this.manager.customSpawnAreas != null && this.manager.customSpawnAreas.Count > 0)
+            {
+                Collider spawnCol = this.manager.customSpawnAreas[UnityEngine.Random.Range(0, this.manager.customSpawnAreas.Count)];
+                spawnPointRet = GetRandomPointInCollider(spawnCol);
+            }
+            else
+            {
+                // Fallback if no custom spawn areas found
+                spawnPointRet = transform.position;
+            }
+
+            // 2. Pick a random Goal Point from existing Goal Areas
+            if (this.goals != null && this.goals.Count > 0)
+            {
+                // Simple random selection
+                int limit = 10;
+                while (limit > 0)
+                {
+                    limit--;
+                    int randIdx = UnityEngine.Random.Range(0, this.goals.Count);
+                    Collider goalCol = this.goals[randIdx].goalCollider;
+                    goalPointRet = GetRandomPointInCollider(goalCol);
+
+                    if (Vector3.Distance(spawnPointRet, goalPointRet) > 10f)
+                        break;
+                }
+            }
+        }
+        else if (this.manager.circularSpawn == true)
         {
             Vector3[] circleRetPoints = getCircularPoints();
             spawnPointRet = circleRetPoints[0];
             goalPointRet = circleRetPoints[1];
         }
-        else {
+        else
+        {
             this.goals.Sort(SortGoalsByName);
             int randomSpawnIndex;
             Collider tempArea;
@@ -286,10 +329,10 @@ public class Agent_GoalOnly_Training : Agent
                 goalPointRet = new Vector3(UnityEngine.Random.Range(tempArea.bounds.min.x, tempArea.bounds.max.x), 0f, UnityEngine.Random.Range(tempArea.bounds.min.z, tempArea.bounds.max.z));
             }
             //Remove selected goal area so will not select is as goal area too
-            Monitor_OnlyGoal_Training.GoalAndSpawn tempBeforeRemove = this.goals[randomSpawnIndex];
+            Monitor_Training.GoalAndSpawn tempBeforeRemove = this.goals[randomSpawnIndex];
             this.goals.Remove(this.goals[randomSpawnIndex]);
             Collider tempArea2 = null;
-            if (this.manager.oppositeGoal == true)
+            if (this.manager.oppositeGoal == true || this.localOppositeGoal == true)
             {
                 bool flag = false;
                 while (!flag)
@@ -300,7 +343,8 @@ public class Agent_GoalOnly_Training : Agent
                         flag = true;
                 }
             }
-            else {
+            else
+            {
                 randomSpawnIndex = UnityEngine.Random.Range(0, this.goals.Count);
                 tempArea2 = this.goals[randomSpawnIndex].goalCollider;
             }
@@ -312,11 +356,21 @@ public class Agent_GoalOnly_Training : Agent
 
             this.goals.Add(tempBeforeRemove);
         }
-        
+
         Vector3[] ret = new Vector3[2];
         ret[0] = spawnPointRet;
         ret[1] = goalPointRet;
         return ret;
+    }
+
+    private Vector3 GetRandomPointInCollider(Collider col)
+    {
+        Bounds bounds = col.bounds;
+        return new Vector3(
+            UnityEngine.Random.Range(bounds.min.x, bounds.max.x),
+            0f,
+            UnityEngine.Random.Range(bounds.min.z, bounds.max.z)
+        );
     }
 
     //Observations that the agent receives at every step
@@ -479,6 +533,7 @@ public class Agent_GoalOnly_Training : Agent
         {
             AddReward(+1f * 1.8f);
             Debug.Log("Goal");
+            this.reachedGoal = true;
             EpisodeEnded();
         }
 
@@ -496,7 +551,7 @@ public class Agent_GoalOnly_Training : Agent
         //Use Wg equal to 1.8
         AddReward(-0.00015f * 1.8f);
     }
-    
+
     private void EpisodeEnded()
     {
         this.countEpisode++;
@@ -507,7 +562,7 @@ public class Agent_GoalOnly_Training : Agent
                 string name = this.agentID + "_" + this.countEpisode;
                 this.manager.saveRoute(this.startingPos, this.goalPos, this.collisionsCount, name, GetCumulativeReward(), this.route);
             }
-            Destroy(this.gameObject);
+            this.gameObject.SetActive(false);
             return;
         }
         if (this.manager.saveRoutes && this.manager.stopSaving)

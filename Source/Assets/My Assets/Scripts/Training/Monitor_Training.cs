@@ -220,7 +220,12 @@ public class Monitor_Training : MonoBehaviour
                 idList.RemoveAt(randomIndex);
                 GameObject tempAgent = Instantiate(this.agentPrefab, new Vector3(0, tempID, 0), Quaternion.identity, this.agentParent.transform);
                 if (this.unlimitedEpisodeSteps)
-                    tempAgent.GetComponent<Agent_Training>().MaxStep = 0;
+                {
+                    if (tempAgent.GetComponent<Agent_Training>() != null)
+                        tempAgent.GetComponent<Agent_Training>().MaxStep = 0;
+                    else if (tempAgent.GetComponent<Agent_GoalOnly_Training>() != null)
+                        tempAgent.GetComponent<Agent_GoalOnly_Training>().MaxStep = 0;
+                }
                 if (this.spawnGradually)
                     if (tempID % this.spawnGraduallyNumber == 0)
                         yield return wait;
@@ -233,7 +238,12 @@ public class Monitor_Training : MonoBehaviour
             {
                 GameObject tempAgent = Instantiate(this.agentPrefab, new Vector3(0, i, 0), Quaternion.identity, this.agentParent.transform);
                 if (this.unlimitedEpisodeSteps)
-                    tempAgent.GetComponent<Agent_Training>().MaxStep = 0;
+                {
+                    if (tempAgent.GetComponent<Agent_Training>() != null)
+                        tempAgent.GetComponent<Agent_Training>().MaxStep = 0;
+                    else if (tempAgent.GetComponent<Agent_GoalOnly_Training>() != null)
+                        tempAgent.GetComponent<Agent_GoalOnly_Training>().MaxStep = 0;
+                }
                 if (this.spawnGradually)
                     if (i % this.spawnGraduallyNumber == 0)
                         yield return wait;

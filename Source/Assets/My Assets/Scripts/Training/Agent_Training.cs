@@ -56,7 +56,7 @@ public class Agent_Training : Agent
 
     private void Awake()
     {
-        this.agentID = (int) transform.position.y;
+        this.agentID = (int)transform.position.y;
     }
 
     //Run only one time once scene starts
@@ -65,7 +65,7 @@ public class Agent_Training : Agent
         this.inWeightRegion = false;
         this.AgentRb = this.GetComponent<Rigidbody>();
         this.manager = GameObject.Find("Environment").GetComponent<Monitor_Training>();
-        
+
         // [New] Find SocialTaskCompletionRate
         // Removed as per user request to not look for script here
 
@@ -211,7 +211,8 @@ public class Agent_Training : Agent
             }
         }
 
-        if (this.manager.demoScenes == false) {
+        if (this.manager.demoScenes == false)
+        {
             this.goalWeight = this.manager.goalWeight;
             this.collWeight = this.manager.collisionWeight;
             this.interWeight = this.manager.interactWeight;
@@ -219,7 +220,7 @@ public class Agent_Training : Agent
         }
         else
         {
-            if(this.inWeightRegion == false)
+            if (this.inWeightRegion == false)
             {
                 this.goalWeight = this.startingWeights[0];
                 this.collWeight = this.startingWeights[1];
@@ -275,7 +276,7 @@ public class Agent_Training : Agent
                 list.Add(point);
             }
 
-        int index = (int)(normalizeInRange(this.agentID, 0, agentsCount) * (list.Count-1));
+        int index = (int)(normalizeInRange(this.agentID, 0, agentsCount) * (list.Count - 1));
         return list[index];
     }
 
@@ -284,9 +285,9 @@ public class Agent_Training : Agent
         float angleStep = 360f / this.manager.numOfAgents;
         Vector3[] retPoints = new Vector3[2];
 
-        retPoints[0].x = this.manager.circularSpawnRadius * (float) Mathf.Sin(this.agentID * angleStep * Mathf.Deg2Rad);
+        retPoints[0].x = this.manager.circularSpawnRadius * (float)Mathf.Sin(this.agentID * angleStep * Mathf.Deg2Rad);
         retPoints[0].y = 0;
-        retPoints[0].z = this.manager.circularSpawnRadius * (float) Mathf.Cos(this.agentID * angleStep * Mathf.Deg2Rad);
+        retPoints[0].z = this.manager.circularSpawnRadius * (float)Mathf.Cos(this.agentID * angleStep * Mathf.Deg2Rad);
 
         retPoints[1] = -1f * retPoints[0];
         return retPoints;
@@ -330,7 +331,7 @@ public class Agent_Training : Agent
                     int randIdx = UnityEngine.Random.Range(0, this.goals.Count);
                     Collider goalCol = this.goals[randIdx].goalCollider;
                     goalPointRet = GetRandomPointInCollider(goalCol);
-                    
+
                     if (Vector3.Distance(spawnPointRet, goalPointRet) > 10f)
                         break;
                 }
@@ -342,7 +343,8 @@ public class Agent_Training : Agent
             spawnPointRet = circleRetPoints[0];
             goalPointRet = circleRetPoints[1];
         }
-        else {
+        else
+        {
             this.goals.Sort(SortGoalsByName);
             int randomSpawnIndex;
             Collider tempArea;
@@ -375,7 +377,8 @@ public class Agent_Training : Agent
                         flag = true;
                 }
             }
-            else {
+            else
+            {
                 randomSpawnIndex = UnityEngine.Random.Range(0, this.goals.Count);
                 tempArea2 = this.goals[randomSpawnIndex].goalCollider;
             }
@@ -387,7 +390,7 @@ public class Agent_Training : Agent
 
             this.goals.Add(tempBeforeRemove);
         }
-        
+
         Vector3[] ret = new Vector3[2];
         ret[0] = spawnPointRet;
         ret[1] = goalPointRet;
@@ -602,7 +605,7 @@ public class Agent_Training : Agent
         //Add a negative reward to each step to make agent find its goal as fast as possible
         AddReward(-0.00015f * this.goalWeight);
     }
-    
+
     private void EpisodeEnded()
     {
         this.countEpisode++;
@@ -663,7 +666,7 @@ public class Agent_Training : Agent
                 this.closeAgents++;
                 neighboursPoints.Add(child.position);
             }
-            
+
             if (dist < minDist && dist > 0.01f)
             {
                 agentMin = child.gameObject;
@@ -673,7 +676,7 @@ public class Agent_Training : Agent
 
         if (neighboursPoints.Count > 1)
             this.groupCenterPoint = calculateCenter(neighboursPoints);
-        else if(neighboursPoints.Count == 1)
+        else if (neighboursPoints.Count == 1)
             this.groupCenterPoint = agentMin.transform.position;
         else
             this.groupCenterPoint = transform.position;

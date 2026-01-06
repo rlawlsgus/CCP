@@ -10,12 +10,14 @@ public class Visuals : MonoBehaviour
     MeshRenderer body;
     Monitor_Training manager;
     Agent_Training agent;
+    Agent_GoalOnly_Training agentGoalOnly;
 
     // Start is called before the first frame update
     void Start()
     {
         this.manager = GameObject.Find("Environment").GetComponent<Monitor_Training>();
         this.agent = this.gameObject.GetComponent<Agent_Training>();
+        this.agentGoalOnly = this.gameObject.GetComponent<Agent_GoalOnly_Training>();
         this.trail = transform.GetComponent<TrailRenderer>();
         this.body = transform.GetChild(0).GetComponent<MeshRenderer>();
         this.bodyColor = this.body.material.color;
@@ -26,10 +28,26 @@ public class Visuals : MonoBehaviour
     {
         if (this.manager.coloredWeights)
         {
-            float normalized_collision = this.agent.normalizeInRange(this.agent.collWeight, this.manager.collMin, this.manager.collMax);
-            float normalized_goal = this.agent.normalizeInRange(this.agent.goalWeight, this.manager.goalMin, this.manager.goalMax);
-            float normalized_group = this.agent.normalizeInRange(this.agent.groupWeight, this.manager.groupMin, this.manager.groupMax);
-            float normalized_interact = this.agent.normalizeInRange(this.agent.interWeight, this.manager.interMin, this.manager.interMax);
+            float normalized_collision = 0;
+            float normalized_goal = 0;
+            float normalized_group = 0;
+            float normalized_interact = 0;
+
+            if (this.agent != null)
+            {
+                normalized_collision = this.agent.normalizeInRange(this.agent.collWeight, this.manager.collMin, this.manager.collMax);
+                normalized_goal = this.agent.normalizeInRange(this.agent.goalWeight, this.manager.goalMin, this.manager.goalMax);
+                normalized_group = this.agent.normalizeInRange(this.agent.groupWeight, this.manager.groupMin, this.manager.groupMax);
+                normalized_interact = this.agent.normalizeInRange(this.agent.interWeight, this.manager.interMin, this.manager.interMax);
+            }
+            else if (this.agentGoalOnly != null)
+            {
+                normalized_collision = this.agentGoalOnly.normalizeInRange(this.agentGoalOnly.collWeight, this.manager.collMin, this.manager.collMax);
+                normalized_goal = this.agentGoalOnly.normalizeInRange(this.agentGoalOnly.goalWeight, this.manager.goalMin, this.manager.goalMax);
+                normalized_group = this.agentGoalOnly.normalizeInRange(this.agentGoalOnly.groupWeight, this.manager.groupMin, this.manager.groupMax);
+                normalized_interact = this.agentGoalOnly.normalizeInRange(this.agentGoalOnly.interWeight, this.manager.interMin, this.manager.interMax);
+            }
+
             Color color = new Color(normalized_goal, normalized_interact, normalized_group, Mathf.Clamp(normalized_collision * 0.5f + 0.5f, 0.5f, 1f));
             this.body.material.color = color;
             this.trail.startColor = color;

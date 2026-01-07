@@ -471,6 +471,8 @@ MonoBehaviour:
   groupWeight: 0
   interWeight: 0
   weightRegionColliders: []
+  reachedGoal: 0
+  pdmMode: 1
 --- !u!114 &2024001862751129788
 MonoBehaviour:
   m_ObjectHideFlags: 0

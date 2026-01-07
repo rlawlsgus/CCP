@@ -53,6 +53,9 @@ public class Agent_GoalOnly_Training : Agent
     public bool reachedGoal = false; // [New] Explicit goal tracking
     private bool localOppositeGoal = false;
 
+    [Header("PDM Mode")]
+    public bool pdmMode = false;
+
     private float[] startingWeights;
 
     private void Awake()
@@ -65,20 +68,63 @@ public class Agent_GoalOnly_Training : Agent
     {
         this.inWeightRegion = false;
         this.AgentRb = this.GetComponent<Rigidbody>();
-        this.manager = GameObject.Find("Environment").GetComponent<Monitor_Training>();
-        if (this.manager.saveRoutes)
-            this.route = new List<float[]>();
-        this.agentParent = GameObject.Find("Agents").transform;
-        this.agents = new List<GameObject>();
-        this.interactionObjects = new List<GameObject>();
-        //Get goals areas in scene
-        this.goals = this.manager.getGoalAreas();
-        this.weightRegionColliders = GameObject.FindGameObjectsWithTag("WeightsCollider");
+
+        if (!pdmMode)
+        {
+            GameObject env = GameObject.Find("Environment");
+            if (env != null)
+            {
+                this.manager = env.GetComponent<Monitor_Training>();
+            }
+
+            if (this.manager != null)
+            {
+                if (this.manager.saveRoutes)
+                    this.route = new List<float[]>();
+
+                this.goals = this.manager.getGoalAreas();
+            }
+
+            GameObject agentsObj = GameObject.Find("Agents");
+            if (agentsObj != null)
+                this.agentParent = agentsObj.transform;
+
+            this.agents = new List<GameObject>();
+            this.interactionObjects = new List<GameObject>();
+            this.weightRegionColliders = GameObject.FindGameObjectsWithTag("WeightsCollider");
+        }
     }
+
+    public void SetGoal(Vector3 target)
+    {
+        this.goalPos = target;
+        this.goalDistance = Vector3.Distance(transform.position, this.goalPos);
+        
+        // Initialize current metrics to avoid stale data on first observation
+        this.goalVector = this.goalPos - transform.position;
+        this.currentGoalDistance = this.goalDistance;
+        this.currentAngle = Vector3.Angle(transform.forward, this.goalVector);
+    }
+
+    public void ForceReset(Vector3 pos, Quaternion rot, Vector3 velocity)
+    {
+        transform.position = pos;
+        transform.rotation = rot;
+        if (AgentRb != null)
+        {
+            AgentRb.velocity = velocity;
+            AgentRb.angularVelocity = Vector3.zero;
+        }
+        this.stillCounter = 0;
+        this.rotationCounter = 0;
+    }
+
 
     //Run every time a new episode starts
     public override void OnEpisodeBegin()
     {
+        if (pdmMode) return;
+
         this.reachedGoal = false; // [New]
         this.inWeightRegion = false;
         this.startingWeights = new float[] { this.manager.goalMax, 2.5f, this.manager.interMin, -2.0f };
@@ -114,6 +160,8 @@ public class Agent_GoalOnly_Training : Agent
 
     private bool checkInWeightRegion()
     {
+        if (pdmMode || manager == null) return false;
+
         float weightsDistance = this.manager.inheritWeightsDistance;
         if (Vector3.Distance(transform.position, Vector3.zero) <= weightsDistance)
             return true;
@@ -131,6 +179,8 @@ public class Agent_GoalOnly_Training : Agent
     //Below code is for saving routes to csv
     private void Update()
     {
+        if (pdmMode) return;
+
         if (checkInWeightRegion() == true)
         {
             this.inWeightRegion = true;
@@ -377,12 +427,21 @@ public class Agent_GoalOnly_Training : Agent
     public override void CollectObservations(VectorSensor sensor)
     {
         //Movement
-        var localVelocity = transform.InverseTransformDirection(this.AgentRb.velocity);
-        sensor.AddObservation(localVelocity.x);// 1
-        sensor.AddObservation(localVelocity.z);// 1
+        if (this.AgentRb != null)
+        {
+            var localVelocity = transform.InverseTransformDirection(this.AgentRb.velocity);
+            sensor.AddObservation(localVelocity.x);// 1
+            sensor.AddObservation(localVelocity.z);// 1
+        }
+        else
+        {
+            sensor.AddObservation(0f);
+            sensor.AddObservation(0f);
+        }
 
         //Goal
-        float normalized_goalDistance = normalizeInRange(this.currentGoalDistance, 0, this.manager.maxDistance);
+        float maxDist = (manager != null) ? manager.maxDistance : 100f; // Default if manager is null
+        float normalized_goalDistance = normalizeInRange(this.currentGoalDistance, 0, maxDist);
         sensor.AddObservation(normalized_goalDistance); // 1
         sensor.AddObservation(this.currentAngle); // 1
     }
@@ -392,6 +451,8 @@ public class Agent_GoalOnly_Training : Agent
     {
         // Move the agent using the action.
         MoveAgent(actionBuffers.DiscreteActions);
+
+        if (pdmMode) return;
 
         //Save path to export csv later
         if (this.manager.saveRoutes)
@@ -582,6 +643,8 @@ public class Agent_GoalOnly_Training : Agent
     //Runs when colliders get triggered
     private void OnTriggerEnter(Collider other)
     {
+        if (pdmMode) return;
+
         //Agents collide to each other
         if (other.tag == "AgentCollider")
         {

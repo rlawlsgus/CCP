@@ -15,7 +15,12 @@ public class Visuals : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        this.manager = GameObject.Find("Environment").GetComponent<Monitor_Training>();
+        GameObject env = GameObject.Find("Environment");
+        if (env != null)
+        {
+            this.manager = env.GetComponent<Monitor_Training>();
+        }
+
         this.agent = this.gameObject.GetComponent<Agent_Training>();
         this.agentGoalOnly = this.gameObject.GetComponent<Agent_GoalOnly_Training>();
         this.trail = transform.GetComponent<TrailRenderer>();
@@ -26,6 +31,8 @@ public class Visuals : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (this.manager == null) return;
+
         if (this.manager.coloredWeights)
         {
             float normalized_collision = 0;

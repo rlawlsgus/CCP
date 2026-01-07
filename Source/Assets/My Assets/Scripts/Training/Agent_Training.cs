@@ -54,6 +54,9 @@ public class Agent_Training : Agent
     public GameObject[] weightRegionColliders;
     private float[] startingWeights;
 
+    [Header("PDM Mode")]
+    public bool pdmMode = false;
+
     private void Awake()
     {
         this.agentID = (int)transform.position.y;
@@ -64,24 +67,70 @@ public class Agent_Training : Agent
     {
         this.inWeightRegion = false;
         this.AgentRb = this.GetComponent<Rigidbody>();
-        this.manager = GameObject.Find("Environment").GetComponent<Monitor_Training>();
+        
+        if (!pdmMode)
+        {
+            GameObject env = GameObject.Find("Environment");
+            if (env != null)
+            {
+                this.manager = env.GetComponent<Monitor_Training>();
+            }
 
-        // [New] Find SocialTaskCompletionRate
-        // Removed as per user request to not look for script here
+            if (this.manager != null)
+            {
+                if (this.manager.saveRoutes)
+                    this.route = new List<float[]>();
+                //Get goals areas in scene
+                this.goals = this.manager.getGoalAreas();
+            }
 
-        if (this.manager.saveRoutes)
-            this.route = new List<float[]>();
-        this.agentParent = GameObject.Find("Agents").transform;
-        this.agents = new List<GameObject>();
-        this.interactionObjects = new List<GameObject>();
-        //Get goals areas in scene
-        this.goals = this.manager.getGoalAreas();
-        this.weightRegionColliders = GameObject.FindGameObjectsWithTag("WeightsCollider");
+            GameObject agentsObj = GameObject.Find("Agents");
+            if (agentsObj != null)
+                this.agentParent = agentsObj.transform;
+
+            this.agents = new List<GameObject>();
+            this.interactionObjects = new List<GameObject>();
+            this.weightRegionColliders = GameObject.FindGameObjectsWithTag("WeightsCollider");
+        }
+    }
+
+    public void SetGoal(Vector3 target)
+    {
+        this.goalPos = target;
+        this.goalDistance = Vector3.Distance(transform.position, this.goalPos);
+        
+        // Initialize current metrics to avoid stale data on first observation
+        this.goalVector = this.goalPos - transform.position;
+        this.currentGoalDistance = this.goalDistance;
+        this.currentAngle = Vector3.Angle(transform.forward, this.goalVector);
+    }
+
+    public void ForceReset(Vector3 pos, Quaternion rot, Vector3 velocity)
+    {
+        transform.position = pos;
+        transform.rotation = rot;
+        if (AgentRb != null)
+        {
+            AgentRb.velocity = velocity;
+            AgentRb.angularVelocity = Vector3.zero;
+        }
+        this.stillCounter = 0;
+        this.rotationCounter = 0;
     }
 
     //Run every time a new episode starts
     public override void OnEpisodeBegin()
     {
+        if (pdmMode)
+        {
+            this.goalWeight = 1.8f;
+            this.collWeight = 2.0f;
+            this.interWeight = -5.0f;
+            this.groupWeight = -3.0f;
+            this.reachedGoal = false; // [New] Reset goal status
+            return;
+        }
+
         this.reachedGoal = false; // [New] Reset goal status
         if (setMultiBehaviourWeights())
             this.localOppositeGoal = true;
@@ -196,6 +245,8 @@ public class Agent_Training : Agent
     //Below code is for saving routes to csv
     private void Update()
     {
+        if (pdmMode) return;
+
         if (checkInWeightRegion() == true)
         {
             this.inWeightRegion = true;
@@ -416,15 +467,25 @@ public class Agent_Training : Agent
         sensor.AddObservation(localVelocity.z);// 1
 
         //Goal
-        float normalized_goalDistance = normalizeInRange(this.currentGoalDistance, 0, this.manager.maxDistance);
+        float maxDist = (this.manager != null) ? this.manager.maxDistance : 100f;
+        float normalized_goalDistance = normalizeInRange(this.currentGoalDistance, 0, maxDist);
         sensor.AddObservation(normalized_goalDistance); // 1
         sensor.AddObservation(this.currentAngle); // 1
 
         //Weights
-        float normalized_collision = normalizeInRange(this.collWeight, this.manager.collMin, this.manager.collMax);
-        float normalized_goal = normalizeInRange(this.goalWeight, this.manager.goalMin, this.manager.goalMax);
-        float normalized_group = normalizeInRange(this.groupWeight, this.manager.groupMin, this.manager.groupMax);
-        float normalized_interact = normalizeInRange(this.interWeight, this.manager.interMin, this.manager.interMax);
+        float gMin = (manager != null) ? manager.goalMin : 0.1f;
+        float gMax = (manager != null) ? manager.goalMax : 1.8f;
+        float cMin = (manager != null) ? manager.collMin : 0.5f;
+        float cMax = (manager != null) ? manager.collMax : 3.5f;
+        float iMin = (manager != null) ? manager.interMin : -5.0f;
+        float iMax = (manager != null) ? manager.interMax : 5.0f;
+        float grMin = (manager != null) ? manager.groupMin : -3.0f;
+        float grMax = (manager != null) ? manager.groupMax : 5.0f;
+
+        float normalized_collision = normalizeInRange(this.collWeight, cMin, cMax);
+        float normalized_goal = normalizeInRange(this.goalWeight, gMin, gMax);
+        float normalized_group = normalizeInRange(this.groupWeight, grMin, grMax);
+        float normalized_interact = normalizeInRange(this.interWeight, iMin, iMax);
 
         sensor.AddObservation(normalized_collision); // 1
         sensor.AddObservation(normalized_goal); // 1
@@ -437,6 +498,8 @@ public class Agent_Training : Agent
     {
         // Move the agent using the action.
         MoveAgent(actionBuffers.DiscreteActions);
+
+        if (pdmMode) return;
 
         //Save path to export csv later
         if (this.manager.saveRoutes)
@@ -709,6 +772,8 @@ public class Agent_Training : Agent
     //Runs when colliders get triggered
     private void OnTriggerEnter(Collider other)
     {
+        if (pdmMode) return;
+
         //Agents collide to each other
         if (other.tag == "AgentCollider" && StepCount >= 100f)
         {

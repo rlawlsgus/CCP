@@ -22,9 +22,9 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
     public bool playOnStart = true;
 
     [Header("World Mapping")]
-    public bool useHomography = true;     // H.txt Àû¿ë
-    public bool flipZ = false;            // ÇÊ¿äÇÏ¸é true·Î (ÁÂÇ¥°è µÚÁı±â¿ë)
-    public bool flipX = false;            // ÇÊ¿äÇÏ¸é true·Î (ÁÂÇ¥°è µÚÁı±â¿ë)
+    public bool useHomography = true;     // H.txt ì ìš©
+    public bool flipZ = false;            // í•„ìš”í•˜ë©´ trueë¡œ (ì¢Œí‘œê³„ ë’¤ì§‘ê¸°ìš©)
+    public bool flipX = false;            // í•„ìš”í•˜ë©´ trueë¡œ (ì¢Œí‘œê³„ ë’¤ì§‘ê¸°ìš©)
     public float worldScale = 1f;
     public Vector3 worldOffset = Vector3.zero;
 
@@ -37,29 +37,30 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
     public Vector3 customPivotWorld = Vector3.zero;
 
     [Header("Agents")]
-    public GameObject agentPrefab;        // ºñ¿öµÎ¸é Sphere·Î »ı¼º
+    public GameObject agentPrefab;        // ë¹„ì›Œë‘ë©´ Sphereë¡œ ìƒì„±
+    public bool hideAgents = true;        // ì—ì´ì „íŠ¸ ë Œë”ëŸ¬ë¥¼ ëŒì§€ ì—¬ë¶€
     [Min(0.01f)] public float agentSize = 0.15f;
-    public bool applyYawFromAngle = false; // (ÇöÀç ±¸ÇöÀº "ÀÌµ¿ ¹æÇâÀ» ¹Ù¶óº¸±â" Åä±Û·Î »ç¿ë)
+    public bool applyYawFromAngle = false; // (í˜„ì¬ êµ¬í˜„ì€ "ì´ë™ ë°©í–¥ì„ ë°”ë¼ë³´ê¸°" í† ê¸€ë¡œ ì‚¬ìš©)
     public float yawOffsetDeg = 0f;
 
     [Header("Yaw Smoothing (Move Direction -> Yaw)")]
     public bool smoothYaw = true;
-    [Min(0.001f)] public float yawSmoothTime = 0.08f; // ÀÛÀ»¼ö·Ï »¡¸® µû¶ó°¨
-    [Min(0f)] public float dirEpsilon = 0.0005f;      // ³Ê¹« ÀÛÀ¸¸é ¹æÇâ ¾÷µ¥ÀÌÆ® ¾È ÇÔ(¸¶Áö¸· À¯È¿ dir À¯Áö)
+    [Min(0.001f)] public float yawSmoothTime = 0.08f; // ì‘ì„ìˆ˜ë¡ ë¹¨ë¦¬ ë”°ë¼ê°
+    [Min(0f)] public float dirEpsilon = 0.0005f;      // ë„ˆë¬´ ì‘ìœ¼ë©´ ë°©í–¥ ì—…ë°ì´íŠ¸ ì•ˆ í•¨(ë§ˆì§€ë§‰ ìœ íš¨ dir ìœ ì§€)
 
     [Header("Group Gizmos")]
     public bool drawGroupRays = true;
     public bool drawOnlyWhenBothVisible = true;
-    public float rayY = 0.05f;            // ¹Ù´Ú¿¡¼­ »ìÂ¦ ¶ç¿ì±â
+    public float rayY = 0.05f;            // ë°”ë‹¥ì—ì„œ ì‚´ì§ ë„ìš°ê¸°
     public bool alsoDrawAgentGizmos = true;
     public float gizmoAgentRadius = 0.05f;
 
     [Header("Animation (Blend Tree)")]
     public bool driveAnimatorBlend = true;
     public string blendParamName = "Blend";   // Animator float parameter name
-    public float speedForFullWalk = 1.2f;     // ÀÌ ¼Óµµ¿¡¼­ Blend=1
-    public float blendDampTime = 0.12f;       // ºÎµå·´°Ô º¯È­(0ÀÌ¸é Áï½Ã)
-    public float speedEpsilon = 0.01f;        // ÀÌÇÏ¸é 0À¸·Î ½º³À
+    public float speedForFullWalk = 1.2f;     // ì´ ì†ë„ì—ì„œ Blend=1
+    public float blendDampTime = 0.12f;       // ë¶€ë“œëŸ½ê²Œ ë³€í™”(0ì´ë©´ ì¦‰ì‹œ)
+    public float speedEpsilon = 0.01f;        // ì´í•˜ë©´ 0ìœ¼ë¡œ ìŠ¤ëƒ…
 
     readonly Dictionary<int, Animator> animById = new Dictionary<int, Animator>();
     readonly Dictionary<int, Vector3> prevPosById = new Dictionary<int, Vector3>();
@@ -75,7 +76,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
     [Header("Physics / Trigger Collision")]
     public bool enableAgentTriggers = true;
     public bool colliderIsTrigger = true;
-    public float triggerRadiusWorld = 0.25f;   // ¿ùµå ±âÁØ ¹İ°æ
+    public float triggerRadiusWorld = 0.25f;   // ì›”ë“œ ê¸°ì¤€ ë°˜ê²½
     public bool addKinematicRigidbody = true;
 
     // ---------- internal ----------
@@ -559,8 +560,17 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
                 }
             }
 
-            // ÃÊ±â¿£ ²¨µÖµµ µÊ. (EvaluateAndApplyTransforms¿¡¼­ "¼¼ÆÃ ÈÄ È°¼º"·Î º¸Àå)
+            // ì´ˆê¸°ì—” êº¼ë‘¬ë„ ë¨. (EvaluateAndApplyTransformsì—ì„œ "ì„¸íŒ… í›„ í™œì„±"ë¡œ ë³´ì¥)
             go.SetActive(false);
+
+            // Make Invisible (Disable all Renderers) if option is on
+            if (hideAgents)
+            {
+                foreach (var r in go.GetComponentsInChildren<Renderer>())
+                {
+                    r.enabled = false;
+                }
+            }
 
             goById[id] = go;
 
@@ -569,7 +579,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
         }
     }
 
-    // === helper: rawXY -> world (mapping + rotateInWorld±îÁö Æ÷ÇÔ) ===
+    // === helper: rawXY -> world (mapping + rotateInWorldê¹Œì§€ í¬í•¨) ===
     Vector3 MapRawToWorld(Vector2 rawXY, Vector3 pivot)
     {
         Vector2 world2 = useHomography ? ApplyHomography(H, rawXY) : rawXY;
@@ -581,7 +591,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
         return pos;
     }
 
-    // === helper: hasPrev°¡ ¾øÀ» ¶§ ÃÊ±â yaw¸¦ Àâ±â À§ÇÑ "¹Ì·¡/°ú°Å" »ùÇÃ ±â¹İ dir ===
+    // === helper: hasPrevê°€ ì—†ì„ ë•Œ ì´ˆê¸° yawë¥¼ ì¡ê¸° ìœ„í•œ "ë¯¸ë˜/ê³¼ê±°" ìƒ˜í”Œ ê¸°ë°˜ dir ===
     bool TryGetInitialDirFromTrajectory(Trajectory traj, float frameF, Vector3 pivot, out Vector3 dirWorld)
     {
         dirWorld = Vector3.zero;
@@ -589,7 +599,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
         float step = Mathf.Sign(playbackSpeed);
         if (Mathf.Approximately(step, 0f)) step = 1f;
 
-        // 1) ´ÙÀ½ ÇÁ·¹ÀÓ(ÁøÇà ¹æÇâ) ½Ãµµ
+        // 1) ë‹¤ìŒ í”„ë ˆì„(ì§„í–‰ ë°©í–¥) ì‹œë„
         if (traj.TryEvaluate(frameF + step, out var rawNext, out _))
         {
             if (traj.TryEvaluate(frameF, out var rawNow, out _))
@@ -602,7 +612,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
             }
         }
 
-        // 2) ¾ÈµÇ¸é ÀÌÀü ÇÁ·¹ÀÓÀ¸·Î ¿ª¹æÇâ dir
+        // 2) ì•ˆë˜ë©´ ì´ì „ í”„ë ˆì„ìœ¼ë¡œ ì—­ë°©í–¥ dir
         if (traj.TryEvaluate(frameF - step, out var rawPrev, out _))
         {
             if (traj.TryEvaluate(frameF, out var rawNow, out _))
@@ -635,7 +645,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
 
             bool wasActive = go.activeSelf;
 
-            // µ¥ÀÌÅÍ ¾øÀ¸¸é ºñÈ°¼º + Ä³½Ã Á¤¸®
+            // ë°ì´í„° ì—†ìœ¼ë©´ ë¹„í™œì„± + ìºì‹œ ì •ë¦¬
             if (!traj.TryEvaluate(currentFrameF, out var rawXY, out var angDeg))
             {
                 if (wasActive) go.SetActive(false);
@@ -649,13 +659,13 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
 
             alive++;
 
-            // --- ¸ÕÀú À§Ä¡ °è»ê/Àû¿ë (inactive¿©µµ transformÀº ¼¼ÆÃ °¡´É) ---
+            // --- ë¨¼ì € ìœ„ì¹˜ ê³„ì‚°/ì ìš© (inactiveì—¬ë„ transformì€ ì„¸íŒ… ê°€ëŠ¥) ---
             Vector3 pos = MapRawToWorld(rawXY, pivot);
 
             bool hasPrev = prevPosById.TryGetValue(id, out var oldPos);
             go.transform.position = pos;
 
-            // --- ¾Ö´Ï¸ŞÀÌ¼Ç blend ---
+            // --- ì• ë‹ˆë©”ì´ì…˜ blend ---
             if (driveAnimatorBlend && animById.TryGetValue(id, out var anim) && anim != null)
             {
                 float speed = 0f;
@@ -673,10 +683,10 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
                 else anim.SetFloat(blendParamName, target);
             }
 
-            // --- È¸Àü(ÀÌµ¿ ¹æÇâ ¹Ù¶óº¸±â) ---
-            // "Ã³À½ È°¼ºÈ­µÇ´Â ÇÁ·¹ÀÓ"¿¡´Â ½º¹«µù ¾øÀÌ ¹Ù·Î target yaw·Î ½º³ÀÇØ¼­,
-            // ÄÑÁö´Â ¼ø°£ ÀÌ¹Ì ¿øÇÏ´Â °¢µµ°¡ µÇ°Ô ÇÔ.
-            bool freshActivation = (!wasActive); // ÀÌ¹ø ÇÁ·¹ÀÓ¿¡ ÄÑÁú ¿¹Á¤ÀÎ »óÅÂ
+            // --- íšŒì „(ì´ë™ ë°©í–¥ ë°”ë¼ë³´ê¸°) ---
+            // "ì²˜ìŒ í™œì„±í™”ë˜ëŠ” í”„ë ˆì„"ì—ëŠ” ìŠ¤ë¬´ë”© ì—†ì´ ë°”ë¡œ target yawë¡œ ìŠ¤ëƒ…í•´ì„œ,
+            // ì¼œì§€ëŠ” ìˆœê°„ ì´ë¯¸ ì›í•˜ëŠ” ê°ë„ê°€ ë˜ê²Œ í•¨.
+            bool freshActivation = (!wasActive); // ì´ë²ˆ í”„ë ˆì„ì— ì¼œì§ˆ ì˜ˆì •ì¸ ìƒíƒœ
 
             if (applyYawFromAngle)
             {
@@ -692,7 +702,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
                 }
                 else
                 {
-                    // hasPrev°¡ ¾øÀ» ¶§: ´ÙÀ½/ÀÌÀü »ùÇÃ·Î ÃÊ±â dir °è»ê
+                    // hasPrevê°€ ì—†ì„ ë•Œ: ë‹¤ìŒ/ì´ì „ ìƒ˜í”Œë¡œ ì´ˆê¸° dir ê³„ì‚°
                     if (TryGetInitialDirFromTrajectory(traj, currentFrameF, pivot, out var initDir))
                     {
                         if (initDir.sqrMagnitude > dirEpsilon * dirEpsilon)
@@ -705,7 +715,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
 
                 float targetYaw = Mathf.Atan2(useDir.x, useDir.z) * Mathf.Rad2Deg + yawOffsetDeg;
 
-                // freshActivation ¶Ç´Â hasPrev ¾øÀ½: Áï½Ã ½º³À (º¸ÀÌ´Â Æ¦ ¹æÁö)
+                // freshActivation ë˜ëŠ” hasPrev ì—†ìŒ: ì¦‰ì‹œ ìŠ¤ëƒ… (ë³´ì´ëŠ” íŠ ë°©ì§€)
                 if (freshActivation || !hasPrev || !smoothYaw)
                 {
                     go.transform.rotation = Quaternion.Euler(0f, targetYaw, 0f);
@@ -727,8 +737,8 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
                 }
             }
 
-            // --- ¸¶Áö¸·¿¡ SetActive(true) ---
-            // (ÀÌ ½ÃÁ¡¿£ position/rotationÀÌ ÀÌ¹Ì ¼¼ÆÃµÇ¾î ÀÖÀ¸´Ï "ÄÑÁú ¶§ ÀÌ¹Ì °¢µµ Á¶ÀıµÊ")
+            // --- ë§ˆì§€ë§‰ì— SetActive(true) ---
+            // (ì´ ì‹œì ì—” position/rotationì´ ì´ë¯¸ ì„¸íŒ…ë˜ì–´ ìˆìœ¼ë‹ˆ "ì¼œì§ˆ ë•Œ ì´ë¯¸ ê°ë„ ì¡°ì ˆë¨")
             if (!wasActive) go.SetActive(true);
 
             prevPosById[id] = pos;
@@ -882,7 +892,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
         isPlaying = false;
 
 #if UNITY_EDITOR
-        // "Stop" ¹öÆ° ´©¸¥ °ÍÃ³·³ Play ¸ğµå Á¾·á
+        // "Stop" ë²„íŠ¼ ëˆ„ë¥¸ ê²ƒì²˜ëŸ¼ Play ëª¨ë“œ ì¢…ë£Œ
         if (EditorApplication.isPlaying)
             EditorApplication.isPlaying = false;
 #endif
@@ -961,6 +971,16 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
     public int GlobalFrame => Mathf.FloorToInt(currentFrameF);
     public int MinFrame => globalMinFrame;
     public int MaxFrame => globalMaxFrame;
+
+    public Vector3 GetFinalWorldPosition(int agentId)
+    {
+        if (trajById.TryGetValue(agentId, out var traj))
+        {
+            Vector2 lastXY = traj.xy[traj.xy.Length - 1];
+            return MapRawToWorld(lastXY, GetPivotWorld());
+        }
+        return Vector3.zero;
+    }
 
     [Header("Trajectory Gizmos (ALL Agents)")]
     public bool drawAllTrajectories = false;

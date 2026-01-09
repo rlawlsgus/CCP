@@ -11,7 +11,7 @@ public class WaypointLoopMoverVector3 : MonoBehaviour
     [Tooltip("체크하면 이 오브젝트 기준 Local 좌표로 저장/이동, 아니면 World 좌표")]
     [SerializeField] private bool useLocalSpace = false;
 
-    [SerializeField] private Vector3[] waypoints = new Vector3[4];
+    [SerializeField] private Vector3[] waypoints = new Vector3[2];
 
     [Header("Move")]
     [SerializeField] private float speed = 3f;
@@ -35,8 +35,8 @@ public class WaypointLoopMoverVector3 : MonoBehaviour
     private void OnValidate()
     {
         // 4개 고정
-        if (waypoints == null) waypoints = new Vector3[4];
-        if (waypoints.Length != 4) System.Array.Resize(ref waypoints, 4);
+        if (waypoints == null) waypoints = new Vector3[2];
+        if (waypoints.Length != 4) System.Array.Resize(ref waypoints, 2);
         if (reachDistance < 0f) reachDistance = 0f;
         if (speed < 0f) speed = 0f;
 

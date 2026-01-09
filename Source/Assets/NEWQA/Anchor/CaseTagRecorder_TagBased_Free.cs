@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-public class CaseTagRecorder_NoAnchors : MonoBehaviour
+public class CaseTagRecorder_NoAnchors_Free : MonoBehaviour
 {
     [Header("Input Folder (jsonl)")]
     private string jsonlFolderPath =
@@ -289,7 +289,7 @@ public class CaseTagRecorder_NoAnchors : MonoBehaviour
 
     void Start()
     {
-        jsonlFolderPath = replayManager.GetComponent<MultiAgentGlobalFrameReplayManager>().jsonlFolderPath;
+        jsonlFolderPath = replayManager.GetComponent<MultiAgentGlobalFrameReplayManager_Free>().jsonlFolderPath;
         RecomputeEnvMaxRadii();
 
         ResolveFolders();

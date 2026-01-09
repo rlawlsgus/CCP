@@ -1,27 +1,36 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
 using UnityEngine;
 
-[DefaultExecutionOrder(100)] // CollisionDebugGizmos(-100)º¸´Ù ³ªÁß¿¡
+[DefaultExecutionOrder(100)] // CollisionDebugGizmos(-100)ë³´ë‹¤ ë‚˜ì¤‘ì—
 public class ZaraTelemetryRecorder : MonoBehaviour
 {
     // ===================== Source selection =====================
-    public enum SourceMode { Auto, UseSimulator, UseRotationSimulator }
+    public enum SourceMode
+    {
+        Auto,
+        UseSimulator,
+        UseRotationSimulator,
+        UseRotationSimulator_ETH, // âœ… added (append only)
+    }
 
     [Header("Source")]
     public SourceMode sourceMode = SourceMode.Auto;
 
     public ZaraGroupSimulator simulator;
-    public ZaraGroupRotationSimulator rotationSimlator; // (typo À¯Áö: ±âÁ¸ ÀÎ½ºÆåÅÍ ¿¬°á ±úÁöÁö ¾Ê°Ô)
+    public ZaraGroupRotationSimulator rotationSimlator; // (typo ìœ ì§€: ê¸°ì¡´ ì¸ìŠ¤í™í„° ì—°ê²° ê¹¨ì§€ì§€ ì•Šê²Œ)
 
-    enum ActiveSourceKind { None, Simulator, Rotation }
+    // âœ… added: ETH rotation simulator
+    public ZaraGroupRotationSimulator_ETH rotationSimlator_ETH;
+
+    enum ActiveSourceKind { None, Simulator, Rotation, RotationETH }
     ActiveSourceKind activeKind = ActiveSourceKind.None;
     Transform activeRoot;
 
-    // cached mapping config (active source ±âÁØ)
+    // cached mapping config (active source ê¸°ì¤€)
     bool srcUseHomography;
     bool srcFlipX;
     bool srcFlipZ;
@@ -29,13 +38,13 @@ public class ZaraTelemetryRecorder : MonoBehaviour
     Vector3 srcWorldOffset;
     Matrix3x3 srcH = Matrix3x3.Identity;
 
-    // rotation-only config (rotation sim ¼±ÅÃ½Ã)
+    // rotation-only config (rotation sim ì„ íƒì‹œ)
     bool srcRotateInWorld;
     float srcRotateDeg;
-    int srcPivotMode;                 // ZaraGroupRotationSimulator.RotationPivotMode °ª(0..)
+    int srcPivotMode;                 // ZaraGroupRotationSimulator.RotationPivotMode ê°’(0..)
     Vector3 srcCustomPivotWorld;
 
-    // centroid/pivot cache (rotation simÀÇ DataCentroid ÇÇ¹ş Áö¿ø)
+    // centroid/pivot cache (rotation simì˜ DataCentroid í”¼ë²— ì§€ì›)
     Vector3 cachedDataCentroidWorld = Vector3.zero;
     bool cachedCentroidValid = false;
 
@@ -52,7 +61,7 @@ public class ZaraTelemetryRecorder : MonoBehaviour
     // ===================== Sampling =====================
     [Header("Sampling")]
     public int logEveryNGlobalFrames = 1;
-    public int captureEveryNGlobalFrames = 10; // 0ÀÌ¸é Ä¸ÃÄ ¾È ÇÔ
+    public int captureEveryNGlobalFrames = 10; // 0ì´ë©´ ìº¡ì³ ì•ˆ í•¨
     public bool captureOnlyWhenAgentActive = true;
 
     // ===================== Speed (dataset-time) =====================
@@ -73,6 +82,8 @@ public class ZaraTelemetryRecorder : MonoBehaviour
     // ===================== Debug =====================
     [Header("Debug")]
     public bool warnIfCollisionNotPublished = true;
+
+
 
     readonly Dictionary<int, StreamWriter> agentWriters = new Dictionary<int, StreamWriter>(256);
     string agentsDir;
@@ -123,9 +134,9 @@ public class ZaraTelemetryRecorder : MonoBehaviour
         public float speedThisFrame;
 
         // ----- padding cache for group -----
-        public bool everObserved;            // "°üÃø" = active »óÅÂ·Î ÇÁ·¹ÀÓÀ» ÇÑ ¹øÀÌ¶óµµ ±â·ÏÇÑ Àû
-        public Vector3 firstObservedWorld;   // Ã¹ °üÃø À§Ä¡(Âü°í¿ë)
-        public Vector3 lastObservedWorld;    // ¸¶Áö¸· °üÃø À§Ä¡ (inactive ½Ã padding¿¡ »ç¿ë)
+        public bool everObserved;            // "ê´€ì¸¡" = active ìƒíƒœë¡œ í”„ë ˆì„ì„ í•œ ë²ˆì´ë¼ë„ ê¸°ë¡í•œ ì 
+        public Vector3 firstObservedWorld;   // ì²« ê´€ì¸¡ ìœ„ì¹˜(ì°¸ê³ ìš©)
+        public Vector3 lastObservedWorld;    // ë§ˆì§€ë§‰ ê´€ì¸¡ ìœ„ì¹˜ (inactive ì‹œ paddingì— ì‚¬ìš©)
     }
 
     // ---------- endpoints precompute ----------
@@ -139,21 +150,28 @@ public class ZaraTelemetryRecorder : MonoBehaviour
     readonly Dictionary<int, Vector3> trajStartById = new Dictionary<int, Vector3>(256);
     readonly Dictionary<int, Vector3> trajEndById = new Dictionary<int, Vector3>(256);
 
+    // ---------- trajectory format detect ----------
+    enum TrajTextFormat { ZaraCsv5, EthObsmat8 }
+
     void Awake()
     {
-        // ±âº» ref Ã£±â (µÑ Áß ÇÏ³ª¶óµµ)
+        // ê¸°ë³¸ ref ì°¾ê¸° (ë‘˜ ì¤‘ í•˜ë‚˜ë¼ë„)
         if (simulator == null) simulator = GetComponent<ZaraGroupSimulator>();
         if (simulator == null) simulator = FindAny<ZaraGroupSimulator>();
 
         if (rotationSimlator == null) rotationSimlator = GetComponent<ZaraGroupRotationSimulator>();
         if (rotationSimlator == null) rotationSimlator = FindAny<ZaraGroupRotationSimulator>();
 
+        // âœ… ETH rotation simulator find
+        if (rotationSimlator_ETH == null) rotationSimlator_ETH = GetComponent<ZaraGroupRotationSimulator_ETH>();
+        if (rotationSimlator_ETH == null) rotationSimlator_ETH = FindAny<ZaraGroupRotationSimulator_ETH>();
+
         ResolveActiveSource();
 
         SetupOutput();
         ParseGroupsFromSource();
 
-        PrecomputeTrajectoryEndpoints(); // active source ±âÁØ(È¸Àü Æ÷ÇÔ °¡´É)
+        PrecomputeTrajectoryEndpoints(); // active source ê¸°ì¤€(íšŒì „ í¬í•¨ ê°€ëŠ¥)
 
         IndexAgentsUnderSource(lightRefresh: false);
 
@@ -199,20 +217,31 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
         bool simOk = simulator != null;
         bool rotOk = rotationSimlator != null;
+        bool rotEthOk = rotationSimlator_ETH != null;
 
-        if (sourceMode == SourceMode.UseRotationSimulator)
+        if (sourceMode == SourceMode.UseRotationSimulator_ETH)
+        {
+            if (rotEthOk) activeKind = ActiveSourceKind.RotationETH;
+            else if (rotOk) activeKind = ActiveSourceKind.Rotation;
+            else if (simOk) activeKind = ActiveSourceKind.Simulator;
+        }
+        else if (sourceMode == SourceMode.UseRotationSimulator)
         {
             if (rotOk) activeKind = ActiveSourceKind.Rotation;
+            else if (rotEthOk) activeKind = ActiveSourceKind.RotationETH;
             else if (simOk) activeKind = ActiveSourceKind.Simulator;
         }
         else if (sourceMode == SourceMode.UseSimulator)
         {
             if (simOk) activeKind = ActiveSourceKind.Simulator;
+            else if (rotEthOk) activeKind = ActiveSourceKind.RotationETH;
             else if (rotOk) activeKind = ActiveSourceKind.Rotation;
         }
         else // Auto
         {
-            if (rotOk) activeKind = ActiveSourceKind.Rotation;
+            // âœ… Auto priority: ETH Rotation -> Rotation -> Simulator
+            if (rotEthOk) activeKind = ActiveSourceKind.RotationETH;
+            else if (rotOk) activeKind = ActiveSourceKind.Rotation;
             else if (simOk) activeKind = ActiveSourceKind.Simulator;
         }
 
@@ -220,11 +249,13 @@ public class ZaraTelemetryRecorder : MonoBehaviour
             activeRoot = simulator != null ? simulator.transform : null;
         else if (activeKind == ActiveSourceKind.Rotation)
             activeRoot = rotationSimlator != null ? rotationSimlator.transform : null;
+        else if (activeKind == ActiveSourceKind.RotationETH)
+            activeRoot = rotationSimlator_ETH != null ? rotationSimlator_ETH.transform : null;
 
         CacheSourceMappingConfig();
 
         if (activeKind == ActiveSourceKind.None)
-            Debug.LogWarning("[ZaraTelemetryRecorder] No active source. Assign ZaraGroupSimulator or ZaraGroupRotationSimulator.");
+            Debug.LogWarning("[ZaraTelemetryRecorder] No active source. Assign ZaraGroupSimulator / ZaraGroupRotationSimulator / ZaraGroupRotationSimulator_ETH.");
         else
             Debug.Log($"[ZaraTelemetryRecorder] Active source = {activeKind}");
     }
@@ -273,10 +304,28 @@ public class ZaraTelemetryRecorder : MonoBehaviour
             srcCustomPivotWorld = rotationSimlator.customPivotWorld;
             srcPivotMode = (int)rotationSimlator.pivotMode;
         }
+        else if (activeKind == ActiveSourceKind.RotationETH && rotationSimlator_ETH != null)
+        {
+            // âœ… ETH: world metersë©´ homography ì¬ì ìš© ê¸ˆì§€
+            srcUseHomography = rotationSimlator_ETH.useHomography && !rotationSimlator_ETH.ethPositionsAreWorldMeters;
+            srcFlipX = rotationSimlator_ETH.flipX;
+            srcFlipZ = rotationSimlator_ETH.flipZ;
+            srcWorldScale = rotationSimlator_ETH.worldScale;
+            srcWorldOffset = rotationSimlator_ETH.worldOffset;
+
+            if (srcUseHomography && rotationSimlator_ETH.homographyTxt != null)
+                srcH = ParseHomography3x3(rotationSimlator_ETH.homographyTxt.text);
+
+            srcRotateInWorld = rotationSimlator_ETH.rotateInWorld;
+            srcRotateDeg = rotationSimlator_ETH.rotateDeg;
+            srcCustomPivotWorld = rotationSimlator_ETH.customPivotWorld;
+            srcPivotMode = (int)rotationSimlator_ETH.pivotMode;
+        }
     }
 
     float GetSrcFps()
     {
+        if (activeKind == ActiveSourceKind.RotationETH && rotationSimlator_ETH != null) return rotationSimlator_ETH.fps;
         if (activeKind == ActiveSourceKind.Rotation && rotationSimlator != null) return rotationSimlator.fps;
         if (activeKind == ActiveSourceKind.Simulator && simulator != null) return simulator.fps;
         return 25f;
@@ -284,6 +333,7 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
     int GetSrcGlobalFrame()
     {
+        if (activeKind == ActiveSourceKind.RotationETH && rotationSimlator_ETH != null) return rotationSimlator_ETH.GlobalFrame;
         if (activeKind == ActiveSourceKind.Rotation && rotationSimlator != null) return rotationSimlator.GlobalFrame;
         if (activeKind == ActiveSourceKind.Simulator && simulator != null) return simulator.GlobalFrame;
         return 0;
@@ -291,6 +341,7 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
     int GetSrcMinFrame()
     {
+        if (activeKind == ActiveSourceKind.RotationETH && rotationSimlator_ETH != null) return rotationSimlator_ETH.MinFrame;
         if (activeKind == ActiveSourceKind.Rotation && rotationSimlator != null) return rotationSimlator.MinFrame;
         if (activeKind == ActiveSourceKind.Simulator && simulator != null) return simulator.MinFrame;
         return 0;
@@ -298,6 +349,7 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
     int GetSrcMaxFrame()
     {
+        if (activeKind == ActiveSourceKind.RotationETH && rotationSimlator_ETH != null) return rotationSimlator_ETH.MaxFrame;
         if (activeKind == ActiveSourceKind.Rotation && rotationSimlator != null) return rotationSimlator.MaxFrame;
         if (activeKind == ActiveSourceKind.Simulator && simulator != null) return simulator.MaxFrame;
         return 0;
@@ -305,6 +357,7 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
     TextAsset GetSrcTrajectoriesTxt()
     {
+        if (activeKind == ActiveSourceKind.RotationETH && rotationSimlator_ETH != null) return rotationSimlator_ETH.trajectoriesTxt;
         if (activeKind == ActiveSourceKind.Rotation && rotationSimlator != null) return rotationSimlator.trajectoriesTxt;
         if (activeKind == ActiveSourceKind.Simulator && simulator != null) return simulator.trajectoriesTxt;
         return null;
@@ -312,6 +365,7 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
     TextAsset GetSrcGroupsTxt()
     {
+        if (activeKind == ActiveSourceKind.RotationETH && rotationSimlator_ETH != null) return rotationSimlator_ETH.groupsTxt;
         if (activeKind == ActiveSourceKind.Rotation && rotationSimlator != null) return rotationSimlator.groupsTxt;
         if (activeKind == ActiveSourceKind.Simulator && simulator != null) return simulator.groupsTxt;
         return null;
@@ -345,8 +399,6 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
             if (!active)
             {
-                // inactive: pos´Â ÇöÀç TransformÀÌ À¯ÁöµÇ´Â °æ¿ìµµ ÀÖÀ¸´Ï ±×³É ±â·ÏÀº ÇØµÎµÇ,
-                // group paddingÀº lastObservedWorld¸¦ »ç¿ëÇÏµµ·Ï ¼³°èÇÔ.
                 tr.posThisFrame = tr.t.position;
                 tr.velThisFrame = Vector3.zero;
                 tr.speedThisFrame = 0f;
@@ -356,7 +408,6 @@ public class ZaraTelemetryRecorder : MonoBehaviour
             Vector3 pos = tr.t.position;
             tr.posThisFrame = pos;
 
-            // observe cache °»½Å (activeÀÏ ¶§¸¸)
             if (!tr.everObserved)
             {
                 tr.everObserved = true;
@@ -431,7 +482,7 @@ public class ZaraTelemetryRecorder : MonoBehaviour
                 members = idToGroupMembers[tr.id];
             }
 
-            // collision: bus¸¸ »ç¿ë
+            // collision: busë§Œ ì‚¬ìš©
             bool collisionAhead = false;
             int collisionOtherId = -1;
             float collisionT = -1f;
@@ -485,16 +536,13 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
     Vector3 GetPaddedWorldForMember(int memberId)
     {
-        // 1) activeµç ¾Æ´Ïµç: "°üÃøµÈ Àû"ÀÌ ÀÖÀ¸¸é lastObservedWorld »ç¿ë (forward-fill)
         if (tracks.TryGetValue(memberId, out var mt) && mt != null)
         {
             if (mt.everObserved) return mt.lastObservedWorld;
         }
 
-        // 2) °üÃø ÀüÀÌ¸é: trajectory ½ÃÀÛÁ¡ »ç¿ë (back-fill¿¡ ÇØ´ç)
         if (trajStartById.TryGetValue(memberId, out var ws)) return ws;
 
-        // 3) ÃÖÈÄ fallback
         return Vector3.zero;
     }
 
@@ -618,32 +666,44 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
     void SetupOutput()
     {
-        string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
-        rootDir = Path.Combine(Application.persistentDataPath, runName + "_" + stamp);
-        Directory.CreateDirectory(rootDir);
-        Directory.CreateDirectory(Path.Combine(rootDir, "images"));
+        // ì›í•˜ëŠ” ì €ì¥ ë£¨íŠ¸ (ë°˜ë“œì‹œ @"" ë˜ëŠ” \\ ì´ìŠ¤ì¼€ì´í”„)
+        string baseDir = @"S:\home\iiixr\Documents";
 
-        agentsDir = Path.Combine(rootDir, "agents");
-        Directory.CreateDirectory(agentsDir);
+        Debug.Log($"[ZaraTelemetryRecorder] Platform={Application.platform}");
+        Debug.Log($"[ZaraTelemetryRecorder] baseDir={baseDir} exists? {Directory.Exists(baseDir)}");
+        Debug.Log($"[ZaraTelemetryRecorder] S:\\ exists? {Directory.Exists(@"S:\")}");
 
-        if (writeCombinedJsonl)
+        try
         {
-            framesWriter = new StreamWriter(Path.Combine(rootDir, "frames.jsonl"), false, Encoding.UTF8)
-            {
-                AutoFlush = false
-            };
-        }
+            // ì“°ê¸° í…ŒìŠ¤íŠ¸(ê¶Œí•œ/ê²½ë¡œ/ë§¤í•‘ í™•ì¸)
+            Directory.CreateDirectory(baseDir);
+            File.WriteAllText(Path.Combine(baseDir, "_write_test.txt"), "ok");
 
-        if (writeAgentSummaries)
+            string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+            rootDir = Path.Combine(baseDir, runName + "_" + stamp);
+
+            Directory.CreateDirectory(rootDir);
+            Directory.CreateDirectory(Path.Combine(rootDir, "images"));
+
+            agentsDir = Path.Combine(rootDir, "agents");
+            Directory.CreateDirectory(agentsDir);
+
+            if (writeCombinedJsonl)
+                framesWriter = new StreamWriter(Path.Combine(rootDir, "frames.jsonl"), false, Encoding.UTF8) { AutoFlush = false };
+
+            if (writeAgentSummaries)
+                summaryWriter = new StreamWriter(Path.Combine(rootDir, "agents_summary.jsonl"), false, Encoding.UTF8) { AutoFlush = false };
+
+            Debug.Log("[ZaraTelemetryRecorder] Output: " + rootDir);
+        }
+        catch (Exception e)
         {
-            summaryWriter = new StreamWriter(Path.Combine(rootDir, "agents_summary.jsonl"), false, Encoding.UTF8)
-            {
-                AutoFlush = false
-            };
+            Debug.LogError("[ZaraTelemetryRecorder] SetupOutput failed:\n" + e);
+            // í•„ìš”í•˜ë©´ fallback
+            // rootDir = Path.Combine(Application.persistentDataPath, runName + "_" + stamp);
         }
-
-        Debug.Log("[ZaraTelemetryRecorder] Output: " + rootDir);
     }
+
 
     StreamWriter GetAgentWriter(int agentId)
     {
@@ -701,7 +761,7 @@ public class ZaraTelemetryRecorder : MonoBehaviour
         AppendKV(sb, "movedFrames", tr.movedFrames); sb.Append(',');
         AppendKV(sb, "movedTimeSec", tr.movedTime); sb.Append(',');
 
-        // group: self Á¦¿Ü, abs/rel Ç×»ó ±â·Ï(ÆĞµù Æ÷ÇÔ), active ¿©ºÎ ¹«°ü
+        // group: self ì œì™¸, abs/rel í•­ìƒ ê¸°ë¡(íŒ¨ë”© í¬í•¨), active ì—¬ë¶€ ë¬´ê´€
         sb.Append("\"group\":{");
         AppendKV(sb, "index", groupIndex); sb.Append(',');
         sb.Append("\"members\":[");
@@ -713,7 +773,7 @@ public class ZaraTelemetryRecorder : MonoBehaviour
 
             foreach (var mid in members)
             {
-                if (mid == tr.id) continue; // self Á¦¿Ü
+                if (mid == tr.id) continue; // self ì œì™¸
 
                 Vector3 abs = GetPaddedWorldForMember(mid);
                 Vector3 rel = abs - myPos;
@@ -821,7 +881,40 @@ public class ZaraTelemetryRecorder : MonoBehaviour
         return full;
     }
 
-    // ===================== endpoint precompute (active source ±âÁØ) =====================
+    // ===================== endpoint precompute (active source ê¸°ì¤€) =====================
+
+    static TrajTextFormat DetectTrajFormat(string text)
+    {
+        using (var sr = new StringReader(text))
+        {
+            string line;
+            while ((line = sr.ReadLine()) != null)
+            {
+                line = line.Trim();
+                if (line.Length == 0) continue;
+
+                if (line.Contains(",")) return TrajTextFormat.ZaraCsv5;
+
+                var toks = line.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+                if (toks.Length >= 8) return TrajTextFormat.EthObsmat8;
+
+                // fallback
+                return TrajTextFormat.ZaraCsv5;
+            }
+        }
+        return TrajTextFormat.ZaraCsv5;
+    }
+
+    static int ParseIntFromFloatToken(string tok, CultureInfo inv)
+    {
+        if (float.TryParse(tok, NumberStyles.Float, inv, out var f))
+            return Mathf.RoundToInt(f);
+
+        if (int.TryParse(tok, NumberStyles.Integer, inv, out var i))
+            return i;
+
+        return 0;
+    }
 
     void PrecomputeTrajectoryEndpoints()
     {
@@ -837,7 +930,9 @@ public class ZaraTelemetryRecorder : MonoBehaviour
         var inv = CultureInfo.InvariantCulture;
         var ep = new Dictionary<int, Endpoints>(256);
 
-        // centroid accumulator (rotationSimÀÇ DataCentroid ÇÇ¹ş ´ëÀÀ)
+        var fmt = DetectTrajFormat(trajTxt.text);
+
+        // centroid accumulator (rotationSimì˜ DataCentroid í”¼ë²— ëŒ€ì‘)
         double cx = 0, cz = 0;
         long ccnt = 0;
 
@@ -847,15 +942,36 @@ public class ZaraTelemetryRecorder : MonoBehaviour
             while ((line = sr.ReadLine()) != null)
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                var parts = line.Split(',');
-                if (parts.Length < 5) continue;
 
-                int id = int.Parse(parts[0].Trim(), inv);
-                float x = float.Parse(parts[1].Trim(), inv);
-                float y = float.Parse(parts[2].Trim(), inv);
-                int frame = int.Parse(parts[3].Trim(), inv);
+                int id, frame;
+                Vector2 rawXY;
 
-                var rawXY = new Vector2(x, y);
+                if (fmt == TrajTextFormat.ZaraCsv5)
+                {
+                    var parts = line.Split(',');
+                    if (parts.Length < 5) continue;
+
+                    id = int.Parse(parts[0].Trim(), inv);
+                    float x = float.Parse(parts[1].Trim(), inv);
+                    float y = float.Parse(parts[2].Trim(), inv);
+                    frame = int.Parse(parts[3].Trim(), inv);
+
+                    rawXY = new Vector2(x, y);
+                }
+                else
+                {
+                    // ETH: [frame_number pedestrian_ID pos_x pos_z pos_y v_x v_z v_y]
+                    var toks = line.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+                    if (toks.Length < 8) continue;
+
+                    frame = ParseIntFromFloatToken(toks[0], inv);
+                    id = ParseIntFromFloatToken(toks[1], inv);
+
+                    float posX = float.Parse(toks[2], NumberStyles.Float, inv);
+                    float posY = float.Parse(toks[4], NumberStyles.Float, inv);
+
+                    rawXY = new Vector2(posX, posY);
+                }
 
                 if (!ep.TryGetValue(id, out var e) || !e.has)
                 {
@@ -922,7 +1038,8 @@ public class ZaraTelemetryRecorder : MonoBehaviour
     {
         Vector3 p = MapRawToWorldBase(rawXY);
 
-        if (activeKind == ActiveSourceKind.Rotation && srcRotateInWorld)
+        // âœ… Rotation / RotationETH ë‘˜ ë‹¤ ì—¬ê¸°ì„œ ì²˜ë¦¬
+        if ((activeKind == ActiveSourceKind.Rotation || activeKind == ActiveSourceKind.RotationETH) && srcRotateInWorld)
         {
             Vector3 pivot = GetRotationPivotWorld();
             p = RotateAroundY(p, pivot, srcRotateDeg);

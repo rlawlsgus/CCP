@@ -4,12 +4,14 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 using Newtonsoft.Json;
+using Unity.VisualScripting;
+
 
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
-public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
+public class MultiAgentGlobalFrameReplayManager_prev : MonoBehaviour
 {
     [Header("Folder Settings")]
     public string jsonlFolderPath =
@@ -33,49 +35,6 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
 
     public float yOffset = 0f;
 
-    // ===================== Anchor Start Mode =====================
-    [Header("Anchor Start Mode")]
-    [Tooltip("ON: 각 chunk는 raw.startWorldPosition에서 시작(기존 방식)\nOFF: 첫 chunk만 startWorldPosition, 이후 chunk는 '이전 chunk의 마지막 위치(현재 위치)'에서 시작")]
-    public bool useChunkStartWorldPosition = true;
-    // =============================================================
-
-    // ===================== ✅ Animation (Blend Tree) =====================
-    [Header("Animation (Blend Tree)")]
-    [Tooltip("Animator가 있으면 속도 기반으로 Blend 파라미터를 구동")]
-    public bool driveAnimatorBlend = true;
-
-    [Tooltip("Animator float parameter name")]
-    public string blendParamName = "Blend";
-
-    [Tooltip("이 속도에서 Blend=1")]
-    public float speedForFullWalk = 1.2f;
-
-    [Tooltip("부드럽게 변화(0이면 즉시)")]
-    public float blendDampTime = 0.12f;
-
-    [Tooltip("이하면 0으로 스냅")]
-    public float speedEpsilon = 0.01f;
-    // ================================================================
-
-    // ===================== ✅ Yaw / Rotation =====================
-    [Header("Yaw (Move Direction)")]
-    [Tooltip("이동 방향을 바라보게 할지")]
-    public bool faceMoveDirection = true;
-
-    [Tooltip("Yaw offset (deg)")]
-    public float yawOffsetDeg = 0f;
-
-    [Header("Yaw Smoothing")]
-    public bool smoothYaw = true;
-
-    [Min(0.001f)]
-    public float yawSmoothTime = 0.08f;
-
-    [Min(0f)]
-    [Tooltip("너무 작으면 방향 업데이트 안 함(마지막 유효 dir 유지)")]
-    public float dirEpsilon = 0.0005f;
-    // ============================================================
-
     [Header("Debug")]
     public int currentGlobalFrame = 0;
 
@@ -98,7 +57,7 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
     [Tooltip("ON: 거리 숫자만 표시(흰색). 이게 ON이면 위 모드들은 무시됨")]
     public bool modeDistanceOnly = false;
 
-    // ===================== Per-type radii =====================
+    // ===================== ✅ Per-type radii =====================
     [Header("Debug Radii (per-type)")]
     [Tooltip("NEAR 판정 반경 (Agent)")]
     public float nearRadiusAgent = 6.0f;
@@ -146,7 +105,7 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
     public string TAG_VEHICLE = "Vehicle";
     // =======================================================
 
-    // --- JSON 구조 ---
+    // --- JSON 구조 (네 파일에 맞춤) ---
     [System.Serializable]
     public class ChunkDataRaw
     {
@@ -169,9 +128,6 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
         public Dictionary<int, int> nextFrameOf = new Dictionary<int, int>();
         public Dictionary<int, int> prevFrameOf = new Dictionary<int, int>();
 
-        // ✅ 각 chunk의 시작 global frame 모음 (anchor 시작 프레임)
-        public HashSet<int> chunkStartFrames = new HashSet<int>();
-
         public bool isActiveCached = false;
 
         // debug output
@@ -188,15 +144,6 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
         public string nearestBuildingName = "";
         public string nearestObstacleName = "";
         public string nearestVehicleName = "";
-
-        // === animation / yaw state ===
-        public Animator anim = null;
-
-        public bool hasPrevPos = false;
-        public Vector3 prevPos = Vector3.zero;
-
-        public Vector3 lastDir = Vector3.forward; // 마지막 유효 이동 방향
-        public float yawVel = 0f;                 // SmoothDampAngle 용
     }
 
     private readonly List<AgentTrack> _agents = new List<AgentTrack>();
@@ -246,7 +193,7 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
         if (_agents.Count > 0 && _globalMax >= _globalMin)
         {
             currentGlobalFrame = _globalMin;
-            ApplyGlobalFrame(_globalMin, dtSeconds: 0f);
+            ApplyGlobalFrame(_globalMin);
 
             if (playOnStart)
                 StartCoroutine(CoPlayGlobalFrames());
@@ -290,16 +237,9 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
                 go = SpawnAgent(agentName)
             };
             a.tr = a.go.transform;
-            a.anim = a.go.GetComponentInChildren<Animator>(true);
 
             try
             {
-                a.posByFrame.Clear();
-                a.chunkStartFrames.Clear();
-
-                // 1) 파일 전체를 chunk list로 파싱
-                List<ChunkDataRaw> chunks = new List<ChunkDataRaw>(256);
-
                 foreach (var line in File.ReadLines(file))
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
@@ -308,76 +248,30 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
                     try { raw = JsonConvert.DeserializeObject<ChunkDataRaw>(line); }
                     catch { continue; }
 
-                    if (raw == null) continue;
-                    if (raw.globalFrames == null || raw.localCurrent == null) continue;
+                    if (raw == null || raw.globalFrames == null || raw.localCurrent == null) continue;
                     if (raw.globalFrames.Length != raw.localCurrent.Length) continue;
-                    if (raw.globalFrames.Length == 0) continue;
 
-                    chunks.Add(raw);
-                }
-
-                if (chunks.Count == 0)
-                {
-                    Debug.LogWarning($"No valid chunks in: {file}");
-                    Destroy(a.go);
-                    continue;
-                }
-
-                // 2) chunk 순서 정렬
-                chunks = chunks
-                    .OrderBy(c => c.chunk_index)
-                    .ThenBy(c => c.start_index)
-                    .ToList();
-
-                // 3) chunk를 순서대로 world pos 계산
-                bool haveCarryAnchor = false;
-                Vector3 carryAnchorWorld = Vector3.zero;
-
-                for (int ci = 0; ci < chunks.Count; ci++)
-                {
-                    var raw = chunks[ci];
-
-                    // ✅ 이 chunk의 시작 global frame (anchor 시작)
-                    if (raw.globalFrames != null && raw.globalFrames.Length > 0)
-                        a.chunkStartFrames.Add(raw.globalFrames[0]);
-
-                    Vector3 rawAnchor = ToV3(raw.startWorldPosition);
-                    rawAnchor.y += yOffset;
+                    Vector3 anchor = ToV3(raw.startWorldPosition);
+                    anchor.y += yOffset;
 
                     Vector3 fwd = ToV3(raw.startForward);
                     Quaternion rot = Quaternion.identity;
                     if (rotateOffsetsByStartForward && fwd != Vector3.zero)
                         rot = Quaternion.LookRotation(fwd);
 
-                    Vector3 baseAnchor;
-                    if (useChunkStartWorldPosition || !haveCarryAnchor)
-                        baseAnchor = rawAnchor;
-                    else
-                        baseAnchor = carryAnchorWorld;
-
                     for (int i = 0; i < raw.globalFrames.Length; i++)
                     {
                         int gf = raw.globalFrames[i];
-
                         Vector3 offset = ToV3(raw.localCurrent[i]);
                         if (rotateOffsetsByStartForward && fwd != Vector3.zero)
                             offset = rot * offset;
 
-                        Vector3 worldPos = baseAnchor + offset;
+                        Vector3 worldPos = anchor + offset;
                         a.posByFrame[gf] = worldPos;
 
                         _globalMin = Mathf.Min(_globalMin, gf);
                         _globalMax = Mathf.Max(_globalMax, gf);
                     }
-
-                    // 다음 chunk carry anchor = 이번 chunk 마지막 위치
-                    int lastIdx = raw.localCurrent.Length - 1;
-                    Vector3 lastOffset = ToV3(raw.localCurrent[lastIdx]);
-                    if (rotateOffsetsByStartForward && fwd != Vector3.zero)
-                        lastOffset = rot * lastOffset;
-
-                    carryAnchorWorld = baseAnchor + lastOffset;
-                    haveCarryAnchor = true;
                 }
             }
             catch (System.Exception e)
@@ -391,11 +285,6 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
 
             a.go.SetActive(false);
             a.isActiveCached = false;
-
-            a.hasPrevPos = false;
-            a.prevPos = Vector3.zero;
-            a.lastDir = Vector3.forward;
-            a.yawVel = 0f;
 
             _agents.Add(a);
             _agentByRoot[a.tr] = a;
@@ -434,12 +323,9 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
 
         go.transform.SetParent(transform);
         go.name = agentName;
-
-        // 네가 넣어둔 랜덤 child 표시 로직 유지
         int start = 0;
         int count = 6;
         int endExclusive = Mathf.Min(go.transform.childCount, start + count);
-
         for (int i = start; i < endExclusive; i++)
             go.transform.GetChild(i).gameObject.SetActive(false);
 
@@ -462,118 +348,38 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
         for (int gf = _globalMin; gf <= _globalMax; gf++)
         {
             currentGlobalFrame = gf;
-            ApplyGlobalFrame(gf, dtSeconds: wait);
+            ApplyGlobalFrame(gf);
             yield return new WaitForSeconds(wait);
         }
     }
 
-    void ApplyGlobalFrame(int gf, float dtSeconds)
+    void ApplyGlobalFrame(int gf)
     {
-        // dtSeconds가 0이면(초기 1회 호출 등) Time.deltaTime로 fallback
-        float dt = (dtSeconds > 0f) ? dtSeconds : Mathf.Max(1e-6f, Time.deltaTime);
-
+        // 1) 포즈 업데이트
         foreach (var a in _agents)
         {
             if (a == null || a.tr == null) continue;
 
             if (a.posByFrame.TryGetValue(gf, out var pos))
             {
-                bool freshActivation = !a.isActiveCached;
-                bool isChunkStart = a.chunkStartFrames != null && a.chunkStartFrames.Contains(gf);
+                Vector3 dir = GetDirectionAtFrame(a, gf, pos);
 
-                // --- speed/dir 계산 ---
-                float speed = 0f;
-
-                if (isChunkStart)
-                {
-                    // ✅ chunk anchor 시작 프레임: "현재 worldpos -> 다음 worldpos" 방향으로 즉시 설정
-                    if (a.nextFrameOf.TryGetValue(gf, out int nextGf) && nextGf != int.MinValue
-                        && a.posByFrame.TryGetValue(nextGf, out var nextPos))
-                    {
-                        Vector3 d = nextPos - pos;
-                        d.y = 0f;
-
-                        if (d.sqrMagnitude > dirEpsilon * dirEpsilon)
-                            a.lastDir = d.normalized;
-
-                        speed = d.magnitude / Mathf.Max(1e-6f, dt);
-                    }
-
-                    // chunk 시작 프레임에서는 smoothing 잔여값 제거
-                    a.yawVel = 0f;
-                }
-                else
-                {
-                    // --- 기존 prev 기반 speed/dir ---
-                    if (a.hasPrevPos)
-                    {
-                        float dist = Vector3.Distance(a.prevPos, pos);
-                        speed = dist / Mathf.Max(1e-6f, dt);
-
-                        Vector3 moveDir = pos - a.prevPos;
-                        moveDir.y = 0f;
-                        if (moveDir.sqrMagnitude > dirEpsilon * dirEpsilon)
-                            a.lastDir = moveDir.normalized;
-                    }
-                    else
-                    {
-                        // prev 없으면 next/prev frame 기반으로 방향 유추
-                        Vector3 dirGuess = GetDirectionAtFrame(a, gf, pos);
-                        if (dirGuess.sqrMagnitude > dirEpsilon * dirEpsilon)
-                            a.lastDir = dirGuess.normalized;
-                    }
-                }
-
-                // --- position ---
-                a.tr.position = pos;
-
-                // --- rotation (move dir) ---
-                if (faceMoveDirection)
-                {
-                    Vector3 useDir = (a.lastDir.sqrMagnitude > 1e-8f) ? a.lastDir : a.tr.forward;
-                    float targetYaw = Mathf.Atan2(useDir.x, useDir.z) * Mathf.Rad2Deg + yawOffsetDeg;
-
-                    // ✅ chunk 시작에서는 무조건 즉시 회전(부드러운 회전 X)
-                    bool instantYaw = freshActivation || isChunkStart || !smoothYaw || !a.hasPrevPos;
-
-                    if (instantYaw)
-                    {
-                        a.tr.rotation = Quaternion.Euler(0f, targetYaw, 0f);
-                        a.yawVel = 0f;
-                    }
-                    else
-                    {
-                        float curYaw = a.tr.eulerAngles.y;
-                        float newYaw = Mathf.SmoothDampAngle(
-                            curYaw, targetYaw, ref a.yawVel,
-                            yawSmoothTime, Mathf.Infinity, Time.deltaTime
-                        );
-                        a.tr.rotation = Quaternion.Euler(0f, newYaw, 0f);
-                    }
-                }
-
-                // --- animator blend ---
-                if (driveAnimatorBlend && a.anim != null)
-                {
-                    float target = (speedForFullWalk <= 1e-6f) ? 0f : Mathf.Clamp01(speed / speedForFullWalk);
-                    if (speed < speedEpsilon) target = 0f;
-
-                    if (blendDampTime > 0f)
-                        a.anim.SetFloat(blendParamName, target, blendDampTime, Time.deltaTime);
-                    else
-                        a.anim.SetFloat(blendParamName, target);
-                }
-
-                // --- 활성화 ---
                 if (!a.isActiveCached)
                 {
+                    if (dir != Vector3.zero)
+                        a.tr.rotation = Quaternion.LookRotation(dir);
+
+                    a.tr.position = pos;
                     a.go.SetActive(true);
                     a.isActiveCached = true;
                 }
+                else
+                {
+                    a.tr.position = pos;
 
-                // --- cache update ---
-                a.prevPos = pos;
-                a.hasPrevPos = true;
+                    if (dir != Vector3.zero)
+                        a.tr.rotation = Quaternion.Slerp(a.tr.rotation, Quaternion.LookRotation(dir), 15f * Time.deltaTime);
+                }
             }
             else
             {
@@ -582,10 +388,6 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
                     a.go.SetActive(false);
                     a.isActiveCached = false;
                 }
-
-                // 프레임이 끊기면 history 리셋(다음 활성 때 튐 방지)
-                a.hasPrevPos = false;
-                a.yawVel = 0f;
 
                 a.hasDebug = false;
                 a.label = "";
@@ -623,17 +425,19 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
     {
         bool wantDistanceOnly = modeDistanceOnly;
 
+        // 특정 대상만 표시 모드
         bool wantAgent = !wantDistanceOnly && modeAgentOnly;
         bool wantBuilding = !wantDistanceOnly && modeBuildingOnly;
         bool wantObstacle = !wantDistanceOnly && modeObstacleOnly;
         bool wantVehicle = !wantDistanceOnly && modeVehicleOnly;
 
+        // 거리 모드면 전부 계산
         bool calcAgent = wantDistanceOnly || wantAgent;
         bool calcBuilding = wantDistanceOnly || wantBuilding;
         bool calcObstacle = wantDistanceOnly || wantObstacle;
         bool calcVehicle = wantDistanceOnly || wantVehicle;
 
-        float qR = _queryRadiusMaxNear;
+        float qR = _queryRadiusMaxNear; // ✅ per-type near 중 최대 반경으로 한 번에 후보 수집
 
         for (int i = 0; i < _agents.Count; i++)
         {
@@ -678,8 +482,10 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
                 Transform ct = c.transform;
                 if (ct == null) continue;
 
+                // 자기 자신 제외
                 if (ct == a.tr || ct.IsChildOf(a.tr)) continue;
 
+                // 1) Agent 후보 (center distance)
                 if (calcAgent && TryGetAgentOwner(ct, out var other) && other != null && other != a)
                 {
                     float d = Vector3.Distance(p, other.tr.position);
@@ -690,6 +496,7 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
                     }
                 }
 
+                // 2) Building 후보 (closest point distance)
                 if (calcBuilding && HasTagInHierarchy(ct, TAG_BUILDING))
                 {
                     float d = DistanceToCollider(p, c);
@@ -701,6 +508,7 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
                     }
                 }
 
+                // 3) Obstacle 후보 (closest point distance)
                 if (calcObstacle && HasTagInHierarchy(ct, TAG_OBSTACLE))
                 {
                     float d = DistanceToCollider(p, c);
@@ -712,6 +520,7 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
                     }
                 }
 
+                // 4) Vehicle 후보 (closest point distance)
                 if (calcVehicle && HasTagInHierarchy(ct, TAG_VEHICLE))
                 {
                     float d = DistanceToCollider(p, c);
@@ -724,6 +533,7 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
                 }
             }
 
+            // ✅ per-type "near" 반경을 적용해서 저장(반경 밖이면 -1로 취급)
             if (bestAgent < float.PositiveInfinity && bestAgent <= nearRadiusAgent)
             {
                 a.nearestAgentDist = bestAgent;
@@ -748,6 +558,7 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
                 a.nearestVehicleName = bestVehName;
             }
 
+            // 라벨 생성: "대상이 하나도 없으면 빈 글씨"
             a.hasDebug = false;
             a.label = "";
 
@@ -768,10 +579,12 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
             }
             else
             {
+                // 여러 모드가 동시에 켜져 있으면 마지막으로 걸린 게 표시됨(원래 스타일 유지)
+
                 if (wantAgent && a.nearestAgentDist >= 0f)
                 {
                     a.hasDebug = true;
-                    a.color = new Color(0.2f, 0.6f, 1.0f, 1f);
+                    a.color = new Color(0.2f, 0.6f, 1.0f, 1f); // blue
                     string hitMark = (a.nearestAgentDist <= hitRadiusAgent) ? "HIT" : "NEAR";
                     a.label = $"{hitMark}: {a.nearestAgentName}\nd={a.nearestAgentDist:0.00}";
                 }
@@ -831,6 +644,7 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
 
     string GetTaggedRootName(Transform t, string tag)
     {
+        // tag 달린 가장 위쪽(부모 방향) 오브젝트 이름을 반환
         Transform found = null;
         var cur = t;
         while (cur != null)
@@ -877,9 +691,11 @@ public class MultiAgentGlobalFrameReplayManager : MonoBehaviour
 
             if (drawWireSphere)
             {
+                // ✅ 현재 표시 중인 모드에 따라 와이어 스피어 반경도 타입별로
                 float r = 0.001f;
                 if (modeDistanceOnly)
                 {
+                    // 거리모드면 그냥 "최소 hit 중 최대"로 표시(원하면 분리 가능)
                     r = Mathf.Max(hitRadiusAgent, Mathf.Max(hitRadiusBuilding, Mathf.Max(hitRadiusObstacle, hitRadiusVehicle)));
                 }
                 else if (modeAgentOnly) r = hitRadiusAgent;

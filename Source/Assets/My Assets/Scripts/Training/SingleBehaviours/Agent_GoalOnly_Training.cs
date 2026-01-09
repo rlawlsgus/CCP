@@ -55,6 +55,8 @@ public class Agent_GoalOnly_Training : Agent
 
     [Header("PDM Mode")]
     public bool pdmMode = false;
+    public Transform GoalTransform;
+    public bool disableOnGoal = false;
 
     private float[] startingWeights;
 
@@ -99,7 +101,7 @@ public class Agent_GoalOnly_Training : Agent
     {
         this.goalPos = target;
         this.goalDistance = Vector3.Distance(transform.position, this.goalPos);
-        
+
         // Initialize current metrics to avoid stale data on first observation
         this.goalVector = this.goalPos - transform.position;
         this.currentGoalDistance = this.goalDistance;
@@ -123,7 +125,15 @@ public class Agent_GoalOnly_Training : Agent
     //Run every time a new episode starts
     public override void OnEpisodeBegin()
     {
-        if (pdmMode) return;
+        if (pdmMode)
+        {
+            if (GoalTransform != null)
+            {
+                this.goalPos = GoalTransform.position;
+                this.goalDistance = Vector3.Distance(transform.position, this.goalPos);
+            }
+            return;
+        }
 
         this.reachedGoal = false; // [New]
         this.inWeightRegion = false;
@@ -426,6 +436,16 @@ public class Agent_GoalOnly_Training : Agent
     //Observations that the agent receives at every step
     public override void CollectObservations(VectorSensor sensor)
     {
+        if (pdmMode && GoalTransform != null)
+        {
+            this.goalPos = GoalTransform.position;
+        }
+
+        // Recalculate metrics
+        this.goalVector = this.goalPos - transform.position;
+        this.currentGoalDistance = Vector3.Distance(transform.position, this.goalPos);
+        this.currentAngle = Vector3.Angle(transform.forward, this.goalVector);
+
         //Movement
         if (this.AgentRb != null)
         {
@@ -452,7 +472,11 @@ public class Agent_GoalOnly_Training : Agent
         // Move the agent using the action.
         MoveAgent(actionBuffers.DiscreteActions);
 
-        if (pdmMode) return;
+        if (pdmMode)
+        {
+            CheckGoalReachedPDM();
+            return;
+        }
 
         //Save path to export csv later
         if (this.manager.saveRoutes)
@@ -478,6 +502,24 @@ public class Agent_GoalOnly_Training : Agent
         Vector3 groubVector = this.closestAgent.transform.position - transform.position;
         float gr = forwardResized.magnitude / groubVector.magnitude;
         Debug.DrawRay(transform.position, groubVector * gr, new Color(255, 150, 0));*/
+    }
+
+    private void CheckGoalReachedPDM()
+    {
+        if (GoalTransform != null) this.goalPos = GoalTransform.position;
+
+        float distXZ = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(this.goalPos.x, 0, this.goalPos.z));
+        float threshold = (this.manager != null) ? this.manager.goalDistanceThreshold : 1f;
+
+        if (distXZ <= threshold)
+        {
+            Debug.Log("Goal (PDM Mode)");
+            this.reachedGoal = true;
+            if (disableOnGoal)
+            {
+                gameObject.SetActive(false);
+            }
+        }
     }
 
     //Select a random action from the four below to help agent unstuck
@@ -590,11 +632,19 @@ public class Agent_GoalOnly_Training : Agent
         this.currentGoalDistance = Vector3.Distance(transform.position, this.goalPos);
 
         //Goal Arrival Reward
-        if (this.currentGoalDistance <= this.manager.goalDistanceThreshold)
+        float threshold = (this.manager != null) ? this.manager.goalDistanceThreshold : 1.5f;
+        if (this.currentGoalDistance <= threshold)
         {
             AddReward(+1f * 1.8f);
             Debug.Log("Goal");
             this.reachedGoal = true;
+
+            if (pdmMode && disableOnGoal)
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+
             EpisodeEnded();
         }
 
@@ -673,6 +723,21 @@ public class Agent_GoalOnly_Training : Agent
     {
         yield return new WaitForSeconds(this.manager.timeToInheritWeights);
         this.inWeightRegion = true;
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (GoalTransform != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(GoalTransform.position, 1.0f);
+            Gizmos.DrawLine(transform.position + Vector3.up * 0.5f, GoalTransform.position + Vector3.up * 0.5f);
+        }
+        else if (goalPos != Vector3.zero)
+        {
+            Gizmos.color = Color.gray;
+            Gizmos.DrawLine(transform.position, goalPos);
+        }
     }
 
     private void appendToRoutes()

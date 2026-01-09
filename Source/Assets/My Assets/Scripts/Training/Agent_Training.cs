@@ -56,6 +56,8 @@ public class Agent_Training : Agent
 
     [Header("PDM Mode")]
     public bool pdmMode = false;
+    public Transform GoalTransform;
+    public bool disableOnGoal = false;
 
     private void Awake()
     {
@@ -67,7 +69,7 @@ public class Agent_Training : Agent
     {
         this.inWeightRegion = false;
         this.AgentRb = this.GetComponent<Rigidbody>();
-        
+
         if (!pdmMode)
         {
             GameObject env = GameObject.Find("Environment");
@@ -98,7 +100,7 @@ public class Agent_Training : Agent
     {
         this.goalPos = target;
         this.goalDistance = Vector3.Distance(transform.position, this.goalPos);
-        
+
         // Initialize current metrics to avoid stale data on first observation
         this.goalVector = this.goalPos - transform.position;
         this.currentGoalDistance = this.goalDistance;
@@ -123,6 +125,11 @@ public class Agent_Training : Agent
     {
         if (pdmMode)
         {
+            if (GoalTransform != null)
+            {
+                this.goalPos = GoalTransform.position;
+                this.goalDistance = Vector3.Distance(transform.position, this.goalPos);
+            }
             this.goalWeight = 1.8f;
             this.collWeight = 2.0f;
             this.interWeight = -5.0f;
@@ -461,6 +468,16 @@ public class Agent_Training : Agent
     //Observations that the agent receives at every step
     public override void CollectObservations(VectorSensor sensor)
     {
+        if (pdmMode && GoalTransform != null)
+        {
+            this.goalPos = GoalTransform.position;
+        }
+
+        // Recalculate metrics
+        this.goalVector = this.goalPos - transform.position;
+        this.currentGoalDistance = Vector3.Distance(transform.position, this.goalPos);
+        this.currentAngle = Vector3.Angle(transform.forward, this.goalVector);
+
         //Movement
         var localVelocity = transform.InverseTransformDirection(this.AgentRb.velocity);
         sensor.AddObservation(localVelocity.x);// 1
@@ -499,7 +516,11 @@ public class Agent_Training : Agent
         // Move the agent using the action.
         MoveAgent(actionBuffers.DiscreteActions);
 
-        if (pdmMode) return;
+        if (pdmMode)
+        {
+            CheckGoalReachedPDM();
+            return;
+        }
 
         //Save path to export csv later
         if (this.manager.saveRoutes)
@@ -514,6 +535,24 @@ public class Agent_Training : Agent
 
         float g = forwardResized.magnitude / this.goalVector.magnitude;
         Debug.DrawRay(transform.position, this.goalVector * g, Color.green);
+    }
+
+    private void CheckGoalReachedPDM()
+    {
+        if (GoalTransform != null) this.goalPos = GoalTransform.position;
+
+        float distXZ = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(this.goalPos.x, 0, this.goalPos.z));
+        float threshold = (this.manager != null) ? this.manager.goalDistanceThreshold : 1f;
+
+        if (distXZ <= threshold)
+        {
+            Debug.Log("Goal (PDM Mode)");
+            this.reachedGoal = true;
+            if (disableOnGoal)
+            {
+                gameObject.SetActive(false);
+            }
+        }
     }
 
     //Select a random action from the four below to help agent unstuck
@@ -624,12 +663,20 @@ public class Agent_Training : Agent
         this.currentGoalDistance = Vector3.Distance(transform.position, this.goalPos);
 
         //Goal Arrival Reward
-        if (this.currentGoalDistance <= this.manager.goalDistanceThreshold)
+        float threshold = (this.manager != null) ? this.manager.goalDistanceThreshold : 1.5f;
+        if (this.currentGoalDistance <= threshold)
         {
             AddReward(+1f * this.goalWeight);
             Debug.Log("Goal");
             this.lastEpisodeSuccess = true;
             this.reachedGoal = true; // [New]
+
+            if (pdmMode && disableOnGoal)
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+
             EpisodeEnded();
         }
 
@@ -805,6 +852,21 @@ public class Agent_Training : Agent
     {
         yield return new WaitForSeconds(this.manager.timeToInheritWeights);
         this.inWeightRegion = true;
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (GoalTransform != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(GoalTransform.position, 1.0f);
+            Gizmos.DrawLine(transform.position + Vector3.up * 0.5f, GoalTransform.position + Vector3.up * 0.5f);
+        }
+        else if (goalPos != Vector3.zero)
+        {
+            Gizmos.color = Color.gray;
+            Gizmos.DrawLine(transform.position, goalPos);
+        }
     }
 
     private void appendToRoutes()

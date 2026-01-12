@@ -1,0 +1,317 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using System.Linq;
+
+public class TestManager : MonoBehaviour
+{
+    public enum ScenarioType { Intersection, Intersection2, Hallway, Density }
+
+    [Header("Settings")]
+    public ScenarioType scenario = ScenarioType.Intersection;
+    public GameObject agentPrefab;
+    public float gridSpacing = 2.0f; // 에이전트 간 간격
+
+    [Header("Density Scenario Settings")]
+    public int densitySpawnCount = 50;
+    public float densityAreaSize = 30f;
+
+    [Header("Step-based Simulation Settings")]
+    [Tooltip("If true, simulation proceeds in discrete steps controlled by TestManager.")]
+    public bool stepBasedSimulation = false;
+    // [Tooltip("Duration of each movement phase in seconds.")]
+    // public float stepInterval = 0.8f; // No longer used as we wait for agents to finish.
+
+    [Header("Runtime")]
+    public List<GameObject> activeAgents = new List<GameObject>();
+    public List<Transform> activeGoals = new List<Transform>();
+
+    private enum SimState { Idle, Paused_Requesting, WaitingForAgents, Moving }
+    [SerializeField] private SimState currentState = SimState.Idle;
+
+    void Start()
+    {
+        if (agentPrefab == null)
+        {
+            Debug.LogError("Agent Prefab is missing in TestManager!");
+            return;
+        }
+
+        SpawnScenario();
+
+        if (stepBasedSimulation)
+        {
+            StartCoroutine(StepSimulationLoop());
+        }
+    }
+
+    public void SpawnScenario()
+    {
+        // 기존 에이전트 및 Goal 오브젝트 정리
+        foreach (var agent in activeAgents)
+        {
+            if (agent != null) Destroy(agent);
+        }
+        foreach (var goal in activeGoals)
+        {
+            if (goal != null) Destroy(goal.gameObject);
+        }
+        activeAgents.Clear();
+        activeGoals.Clear();
+
+        if (scenario == ScenarioType.Intersection)
+        {
+            // 1. X축 그룹 (Start: x=-15, z=0 -> Goal: x=15, z=0) [Straight]
+            SpawnGroup(new Vector3(-15, 0, 0), new Vector3(15, 0, 0), Quaternion.Euler(0, 90, 0));
+
+            // 2. Z축 그룹 (Start: x=0, z=15 -> Goal: x=0, z=-15) [Straight]
+            SpawnGroup(new Vector3(0, 0, 15), new Vector3(0, 0, -15), Quaternion.Euler(0, 180, 0));
+        }
+        else if (scenario == ScenarioType.Intersection2)
+        {
+            // 1. X축 그룹 (Start: x=15, z=0 -> Goal: x=0, z=-15) [Turn Left]
+            SpawnGroup(new Vector3(15, 0, 0), new Vector3(0, 0, -15), Quaternion.Euler(0, -90, 0));
+
+            // 2. Z축 그룹 (Start: x=0, z=15 -> Goal: x=-15, z=0) [Turn Right]
+            SpawnGroup(new Vector3(0, 0, 15), new Vector3(-15, 0, 0), Quaternion.Euler(0, 180, 0));
+        }
+        else if (scenario == ScenarioType.Hallway)
+        {
+            // 1. X축 오른쪽 그룹 (Start: x=15 -> Goal: x=-15)
+            SpawnGroup(new Vector3(15, 0, 0), new Vector3(-15, 0, 0), Quaternion.Euler(0, -90, 0));
+
+            // 2. X축 왼쪽 그룹 (Start: x=-15 -> Goal: x=15)
+            SpawnGroup(new Vector3(-15, 0, 0), new Vector3(15, 0, 0), Quaternion.Euler(0, 90, 0));
+        }
+        else if (scenario == ScenarioType.Density)
+        {
+            SpawnDensityScenario();
+        }
+    }
+
+    void SpawnDensityScenario()
+    {
+        float halfSize = densityAreaSize * 0.5f;
+
+        for (int i = 0; i < densitySpawnCount; i++)
+        {
+            // 1. Random Spawn Position with Min Distance Check
+            Vector3 spawnPos = Vector3.zero;
+            bool validPosition = false;
+            int posAttempts = 0;
+
+            while (!validPosition && posAttempts < 50)
+            {
+                spawnPos = new Vector3(
+                    Random.Range(-halfSize, halfSize),
+                    0.05f,
+                    Random.Range(-halfSize, halfSize)
+                );
+
+                validPosition = true;
+                foreach (var existingAgent in activeAgents)
+                {
+                    if (existingAgent == null) continue;
+                    if (Vector3.Distance(spawnPos, existingAgent.transform.position) < 1.0f)
+                    {
+                        validPosition = false;
+                        break;
+                    }
+                }
+                posAttempts++;
+            }
+
+            if (!validPosition)
+            {
+                Debug.LogWarning($"Could not find valid spawn position for Agent {i} after {posAttempts} attempts.");
+            }
+
+            // 2. Random Goal Position
+            Vector3 goalPos = new Vector3(
+                Random.Range(-halfSize, halfSize),
+                0.05f,
+                Random.Range(-halfSize, halfSize)
+            );
+
+            // Ensure minimum distance (e.g. 5m) to avoid immediate finish
+            int attempts = 0;
+            while (Vector3.Distance(spawnPos, goalPos) < 5.0f && attempts < 10)
+            {
+                goalPos = new Vector3(
+                   Random.Range(-halfSize, halfSize),
+                   0.05f,
+                   Random.Range(-halfSize, halfSize)
+               );
+                attempts++;
+            }
+
+            // 3. Instantiate
+            // Look at goal initially
+            Vector3 dir = goalPos - spawnPos;
+            Quaternion initialRot = Quaternion.identity;
+            if (dir != Vector3.zero) initialRot = Quaternion.LookRotation(dir);
+
+            GameObject agent = Instantiate(agentPrefab, spawnPos, initialRot);
+            agent.name = $"{agentPrefab.name}_{activeAgents.Count}";
+
+            // 4. Setup Goal
+            GameObject goalObj = new GameObject($"{agent.name}_Goal");
+            goalObj.transform.position = goalPos;
+            activeGoals.Add(goalObj.transform);
+
+            // 5. Setup Client
+            var clientSmooth = agent.GetComponent<AnchorClient_Smooth>();
+            var client3 = agent.GetComponent<Anchor3Client>();
+
+            if (clientSmooth != null) clientSmooth.Goal = goalObj.transform;
+            else if (client3 != null)
+            {
+                client3.Goal = goalObj.transform;
+                if (stepBasedSimulation) client3.manualControl = true;
+            }
+            else Debug.LogWarning($"Agent {agent.name} missing client component.");
+
+            activeAgents.Add(agent);
+        }
+    }
+
+    void SpawnGroup(Vector3 centerPos, Vector3 targetPos, Quaternion initialRotation)
+    {
+        // 3x3 Grid
+        int rows = 3;
+        int cols = 3;
+
+        // 그리드의 중심이 centerPos가 되도록 시작점 계산
+        float startX = centerPos.x - (cols - 1) * gridSpacing * 0.5f;
+        float startZ = centerPos.z - (rows - 1) * gridSpacing * 0.5f;
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                Vector3 spawnPos = new Vector3(
+                    startX + c * gridSpacing,
+                    0.05f, // 바닥에 묻히지 않도록 약간 띄움
+                    startZ + r * gridSpacing
+                );
+
+                GameObject agent = Instantiate(agentPrefab, spawnPos, initialRotation);
+                agent.name = $"{agentPrefab.name}_{activeAgents.Count}";
+
+                // Goal 오브젝트 생성 (각 에이전트마다 개별 Goal 할당)
+                // 출발지에서의 상대적 오프셋을 목적지에도 적용하여 그리드 대형 유지
+                Vector3 offset = spawnPos - centerPos;
+                Vector3 finalGoalPos = targetPos + offset;
+
+                GameObject goalObj = new GameObject($"{agent.name}_Goal");
+                goalObj.transform.position = finalGoalPos;
+                activeGoals.Add(goalObj.transform);
+
+                // AnchorClient 설정
+                var clientSmooth = agent.GetComponent<AnchorClient_Smooth>();
+                var client3 = agent.GetComponent<Anchor3Client>();
+
+                if (clientSmooth != null)
+                {
+                    clientSmooth.Goal = goalObj.transform;
+                }
+                else if (client3 != null)
+                {
+                    client3.Goal = goalObj.transform;
+                    if (stepBasedSimulation) client3.manualControl = true;
+                }
+                else
+                {
+                    Debug.LogWarning($"Agent {agent.name} does not have an anchor client component!");
+                }
+
+                activeAgents.Add(agent);
+            }
+        }
+    }
+
+    IEnumerator StepSimulationLoop()
+    {
+        yield return new WaitForSeconds(1.0f); // Initial delay
+
+        while (Application.isPlaying && stepBasedSimulation)
+        {
+            // --- 1. PAUSE & REQUEST ---
+            currentState = SimState.Paused_Requesting;
+            Time.timeScale = 0f;
+
+            var agentsToRequest = activeAgents.Where(a => a != null && a.activeInHierarchy).ToList();
+            if (agentsToRequest.Count == 0)
+            {
+                // No active agents, wait for a second and check again.
+                yield return new WaitForSecondsRealtime(1.0f);
+                continue;
+            }
+
+            int pendingResponses = agentsToRequest.Count;
+
+            foreach (var agent in agentsToRequest)
+            {
+                var client = agent.GetComponent<Anchor3Client>();
+                // This assumes only Anchor3Client is supported in this mode for now.
+                if (client != null)
+                {
+                    client.RequestDecision(() => { pendingResponses--; });
+                }
+                else
+                {
+                    // If an agent doesn't have Anchor3Client, it can't participate in step-based simulation.
+                    // Consider it "responded" to avoid infinite wait.
+                    pendingResponses--;
+                    Debug.LogWarning($"Agent {agent.name} does not have Anchor3Client. Skipping request.");
+                }
+            }
+
+            // --- 2. WAIT FOR RESPONSES ---
+            currentState = SimState.WaitingForAgents;
+            float timeout = 10f;
+            while (pendingResponses > 0 && timeout > 0)
+            {
+                yield return null; // Waits one frame in unscaled time
+                timeout -= Time.unscaledDeltaTime;
+            }
+            if (timeout <= 0) Debug.LogWarning("Agent response timed out!");
+
+            // --- 3. MOVE ---
+            currentState = SimState.Moving;
+            Time.timeScale = 1f;
+
+            // Wait until all agents have finished playing their current trajectory batch.
+            bool allFinished = false;
+            float moveTimeout = 20f; // Safety timeout for movement phase
+            while (!allFinished && moveTimeout > 0)
+            {
+                allFinished = true;
+                // Check against the master list of ALL agents, not just the ones requested this frame.
+                foreach (var agent in activeAgents)
+                {
+                    if (agent != null && agent.activeInHierarchy)
+                    {
+                        var client = agent.GetComponent<Anchor3Client>();
+                        // Only Anchor3Client is supported in this mode for now.
+                        if (client != null && client.IsPlaying)
+                        {
+                            allFinished = false;
+                            break; // At least one is still playing, so we keep waiting.
+                        }
+                    }
+                }
+                moveTimeout -= Time.deltaTime;
+                yield return null;
+            }
+
+            if (moveTimeout <= 0)
+            {
+                Debug.LogWarning("Movement phase timed out. Forcing next step.");
+            }
+        }
+
+        // Ensure time scale is reset if loop exits
+        Time.timeScale = 1f;
+    }
+}

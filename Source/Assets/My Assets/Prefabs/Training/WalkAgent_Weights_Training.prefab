@@ -476,6 +476,8 @@ MonoBehaviour:
   interWeight: 0
   weightRegionColliders: []
   pdmMode: 1
+  GoalTransform: {fileID: 0}
+  disableOnGoal: 0
 --- !u!114 &2024001862751129788
 MonoBehaviour:
   m_ObjectHideFlags: 0

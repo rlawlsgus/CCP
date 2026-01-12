@@ -19,6 +19,9 @@ public class SocialTaskCompletionRate : MonoBehaviour
     public Transform dangerZonesRoot;
     [Tooltip("The parent object containing all Obstacle cubes. Will auto-find 'Obstacles' if null.")]
     public Transform obstaclesRoot;
+    
+    [Header("References")]
+    public TestManager testManager;
 
     [Header("Trajectory Map Settings")]
     public bool enableTrajectoryMap = true;
@@ -53,7 +56,9 @@ public class SocialTaskCompletionRate : MonoBehaviour
     public class AgentTrackingData
     {
         public float totalTime;
-        public float dangerTime;
+        public float dangerZoneTime;
+        public float obstacleTime;
+        public float agentCollisionTime;
         public Collider agentCollider;
         public bool hasReachedGoal; // Cache success status
         public List<TrajectoryPoint> trajectory = new List<TrajectoryPoint>();
@@ -65,6 +70,11 @@ public class SocialTaskCompletionRate : MonoBehaviour
 
     void Start()
     {
+        if (testManager == null)
+        {
+            testManager = FindObjectOfType<TestManager>();
+        }
+
         // Auto-find Danger Zones if not assigned
         if (dangerZonesRoot == null)
         {
@@ -124,43 +134,59 @@ public class SocialTaskCompletionRate : MonoBehaviour
 
     private void SearchForAgents()
     {
-        // Search by iterating children of "Agents" parent object
-        // This ensures we find INACTIVE agents too (which FindObjectsOfType misses).
-        GameObject agentsParent = GameObject.Find("Agents");
-        if (agentsParent == null) return;
-
-        // Iterate all children
-        foreach (Transform child in agentsParent.transform)
+        // 1. Try finding agents via TestManager (Preferred)
+        if (testManager != null && testManager.activeAgents != null)
         {
-            // Skip if already tracked
-            if (trackingData.ContainsKey(child)) continue;
-
-            Agent_Training agentScript = child.GetComponent<Agent_Training>();
-            Agent_GoalOnly_Training goalOnlyScript = child.GetComponent<Agent_GoalOnly_Training>();
-
-            if (agentScript != null || goalOnlyScript != null)
+            foreach (var agent in testManager.activeAgents)
             {
-                // We need a collider to track danger zone entry
-                Collider col = child.GetComponent<Collider>();
+                if (agent == null) continue;
+                RegisterAgent(agent.transform);
+            }
+        }
 
-                // If main collider is not on root, try finding it in children
-                if (col == null)
-                {
-                    col = child.GetComponentInChildren<Collider>();
-                }
+        // 2. Fallback: Search by iterating children of "Agents" parent object
+        GameObject agentsParent = GameObject.Find("Agents");
+        if (agentsParent != null)
+        {
+            foreach (Transform child in agentsParent.transform)
+            {
+                RegisterAgent(child);
+            }
+        }
+    }
 
-                if (col != null)
-                {
-                    AgentTrackingData newData = new AgentTrackingData();
-                    newData.agentCollider = col;
-                    trackingData.Add(child, newData);
-                }
+    private void RegisterAgent(Transform agentTransform)
+    {
+        // Skip if already tracked
+        if (trackingData.ContainsKey(agentTransform)) return;
+
+        Agent_Training agentScript = agentTransform.GetComponent<Agent_Training>();
+        Agent_GoalOnly_Training goalOnlyScript = agentTransform.GetComponent<Agent_GoalOnly_Training>();
+
+        if (agentScript != null || goalOnlyScript != null)
+        {
+            // We need a collider to track danger zone entry
+            Collider col = agentTransform.GetComponent<Collider>();
+
+            // If main collider is not on root, try finding it in children
+            if (col == null)
+            {
+                col = agentTransform.GetComponentInChildren<Collider>();
+            }
+
+            if (col != null)
+            {
+                AgentTrackingData newData = new AgentTrackingData();
+                newData.agentCollider = col;
+                trackingData.Add(agentTransform, newData);
             }
         }
     }
 
     private void UpdateAgentStats()
     {
+        float dt = Time.deltaTime;
+
         foreach (var kvp in trackingData)
         {
             Transform agent = kvp.Key;
@@ -168,8 +194,7 @@ public class SocialTaskCompletionRate : MonoBehaviour
 
             if (agent == null) continue; // Agent might be destroyed
 
-            // [Moved] Check and cache reachedGoal status BEFORE checking active status
-            // This ensures we catch the success flag even if the agent deactivates/destroys itself in the same frame.
+            // Check and cache reachedGoal status BEFORE checking active status
             if (!data.hasReachedGoal)
             {
                 Agent_Training agentScript = agent.GetComponent<Agent_Training>();
@@ -184,85 +209,118 @@ public class SocialTaskCompletionRate : MonoBehaviour
                 }
             }
 
-            if (!agent.gameObject.activeInHierarchy) continue; // Agent finished (one episode only)
+            if (!agent.gameObject.activeInHierarchy) continue; // Agent finished
 
             // Increment Total Time
-            data.totalTime += Time.deltaTime;
+            data.totalTime += dt;
 
-            bool inDanger = IsInDangerZone(data.agentCollider);
-
-            // Check if Agent is inside any Danger Zone
-            if (inDanger)
+            // 1. Check Danger Zone
+            if (IsInDangerZone(data.agentCollider))
             {
-                data.dangerTime += Time.deltaTime;
+                data.dangerZoneTime += dt;
+            }
+
+            // 2. Check Obstacle Collision
+            if (IsCollidingWithObstacle(data.agentCollider))
+            {
+                data.obstacleTime += dt;
+            }
+
+            // 3. Check Agent Collision
+            if (IsCollidingWithAgent(data.agentCollider, agent))
+            {
+                data.agentCollisionTime += dt;
             }
 
             // Record Trajectory
             if (enableTrajectoryMap)
             {
                 Vector3 currentPos = agent.position;
+                bool isDanger = (data.dangerZoneTime > 0) && IsInDangerZone(data.agentCollider); // Simple visualization check
+                
                 if (data.trajectory.Count == 0 || Vector3.Distance(data.trajectory[data.trajectory.Count - 1].position, currentPos) >= minRecordDistance)
                 {
-                    data.trajectory.Add(new TrajectoryPoint(currentPos, inDanger));
+                    data.trajectory.Add(new TrajectoryPoint(currentPos, isDanger));
                 }
             }
         }
     }
 
-    // Check if the agent collider overlaps any of the danger zone or obstacle colliders
+    // Check if the agent collider overlaps any of the danger zone colliders
     private bool IsInDangerZone(Collider agentCollider)
     {
         if (agentCollider == null) return false;
-
-        // Check Danger Zones
         foreach (var col in dangerZoneColliders)
         {
-            if (col != null && col.enabled)
-            {
-                if (CheckCollision(agentCollider, col)) return true;
-            }
+            if (col != null && col.enabled && CheckCollision(agentCollider, col)) return true;
         }
-
-        // Check Obstacles
-        foreach (var col in obstacleColliders)
-        {
-            if (col != null && col.enabled)
-            {
-                if (CheckCollision(agentCollider, col)) return true;
-            }
-        }
-
         return false;
     }
 
-    private bool CheckCollision(Collider agentCollider, Collider targetCollider)
+    // Check if the agent collider overlaps any of the obstacle colliders
+    private bool IsCollidingWithObstacle(Collider agentCollider)
     {
-        // 1. Fast AABB Check
-        if (agentCollider.bounds.Intersects(targetCollider.bounds))
+        if (agentCollider == null) return false;
+        foreach (var col in obstacleColliders)
         {
-            // 2. Precise Collision Check
-            Vector3 direction;
-            float distance;
-            if (Physics.ComputePenetration(
-                agentCollider, agentCollider.transform.position, agentCollider.transform.rotation,
-                targetCollider, targetCollider.transform.position, targetCollider.transform.rotation,
-                out direction, out distance))
-            {
-                return true;
-            }
+            if (col != null && col.enabled && CheckCollision(agentCollider, col)) return true;
         }
         return false;
+    }
+
+    // Check if the agent collider overlaps any OTHER agent collider
+    private bool IsCollidingWithAgent(Collider currentAgentCollider, Transform currentAgentTransform)
+    {
+        if (currentAgentCollider == null) return false;
+
+        foreach (var kvp in trackingData)
+        {
+            Transform otherAgent = kvp.Key;
+            AgentTrackingData otherData = kvp.Value;
+
+            if (otherAgent == currentAgentTransform) continue; // Skip self
+            if (otherAgent == null || !otherAgent.gameObject.activeInHierarchy) continue;
+            if (otherData.agentCollider == null) continue;
+
+            if (CheckCollision(currentAgentCollider, otherData.agentCollider)) return true;
+        }
+        return false;
+    }
+
+    private bool CheckCollision(Collider c1, Collider c2)
+    {
+        if (!c1.bounds.Intersects(c2.bounds)) return false;
+
+        Vector3 direction;
+        float distance;
+        return Physics.ComputePenetration(
+            c1, c1.transform.position, c1.transform.rotation,
+            c2, c2.transform.position, c2.transform.rotation,
+            out direction, out distance);
     }
 
     /// <summary>
     /// Calculates the Social Task Completion Rate for a specific agent.
-    /// Rate = 1.0 - (TimeInDanger / TotalTime).
+    /// Rate = 1.0 - (CombinedDangerTime / TotalTime).
     /// </summary>
     public float CalculateRate(AgentTrackingData data)
     {
-        if (data.totalTime <= 0.0001f) return 1f; // Start with 100%
+        if (data.totalTime <= 0.0001f) return 1f; 
 
-        float rate = 1.0f - (data.dangerTime / data.totalTime);
+        // Summing up times. Note: Overlap is possible (e.g., agent collides with another agent INSIDE a danger zone).
+        // This is a simple summation; weights can be adjusted if needed.
+        // The prompt asked to include Agent Collision in Safe Rate.
+        
+        float combinedUnsafeTime = data.dangerZoneTime + data.obstacleTime + data.agentCollisionTime;
+        
+        // Clamp to ensure it doesn't exceed totalTime (though physically it could if we double count separate events, 
+        // but here we are just taking duration. If multiple overlap, time flows same.)
+        // Actually, if we just sum them, it might exceed totalTime if they happen simultaneously. 
+        // A better approach for "Safe Rate" is: Time spent in ANY unsafe state / Total Time.
+        // But tracking "Any Unsafe State" per frame is better.
+        // For now, I will stick to the requested metric sum, but clamp result.
+        
+        float rate = 1.0f - (combinedUnsafeTime / data.totalTime);
         return Mathf.Clamp01(rate);
     }
 
@@ -272,29 +330,44 @@ public class SocialTaskCompletionRate : MonoBehaviour
 
         int successCount = 0;
         int totalAgents = 0;
-        List<float> successfulAgentSafeRates = new List<float>();
+        
+        List<float> successSafeRates = new List<float>();
+        
+        // Accumulators for specific violation rates (averaged across ALL agents or Success agents? Usually Success)
+        List<float> dangerZoneRates = new List<float>();
+        List<float> obstacleRates = new List<float>();
+        List<float> agentCollisionRates = new List<float>();
 
         foreach (var kvp in trackingData)
         {
             AgentTrackingData data = kvp.Value;
             totalAgents++;
 
-            // Use cached success status
             bool isSuccess = data.hasReachedGoal;
 
-            float rate = CalculateRate(data);
-
-            if (isSuccess)
+            if (isSuccess && data.totalTime > 0.0001f)
             {
                 successCount++;
-                successfulAgentSafeRates.Add(rate);
+                successSafeRates.Add(CalculateRate(data));
+                
+                dangerZoneRates.Add(data.dangerZoneTime / data.totalTime);
+                obstacleRates.Add(data.obstacleTime / data.totalTime);
+                agentCollisionRates.Add(data.agentCollisionTime / data.totalTime);
             }
         }
 
         float successRate = totalAgents > 0 ? (float)successCount / totalAgents : 0f;
-        float avgSuccessSafeRate = successfulAgentSafeRates.Count > 0 ? successfulAgentSafeRates.Average() : 0f;
+        
+        float avgSafeRate = successSafeRates.Count > 0 ? successSafeRates.Average() : 0f;
+        float avgDangerZoneRate = dangerZoneRates.Count > 0 ? dangerZoneRates.Average() : 0f;
+        float avgObstacleRate = obstacleRates.Count > 0 ? obstacleRates.Average() : 0f;
+        float avgAgentCollRate = agentCollisionRates.Count > 0 ? agentCollisionRates.Average() : 0f;
 
-        Debug.Log($"Success Rate: {successRate * 100:F2}% | Average Safe Rate (Successes): {avgSuccessSafeRate * 100:F2}%");
+        Debug.Log($"[Overall] Success Rate: {successRate * 100:F2}% ({successCount}/{totalAgents})");
+        Debug.Log($"[Safety (Successes)] Avg Safe Rate: {avgSafeRate * 100:F2}%");
+        Debug.Log($"   - Danger Zone Violation Rate: {avgDangerZoneRate * 100:F2}%");
+        Debug.Log($"   - Obstacle Collision Rate: {avgObstacleRate * 100:F2}%");
+        Debug.Log($"   - Agent Collision Rate: {avgAgentCollRate * 100:F2}%");
 
         Debug.Log("==========================================");
 

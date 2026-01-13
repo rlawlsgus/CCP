@@ -218,18 +218,21 @@ public class SocialTaskCompletionRate : MonoBehaviour
             if (IsInDangerZone(data.agentCollider))
             {
                 data.dangerZoneTime += dt;
+                DebugDrawCollision(agent.position, Color.yellow, 0.5f);
             }
 
             // 2. Check Obstacle Collision
             if (IsCollidingWithObstacle(data.agentCollider))
             {
                 data.obstacleTime += dt;
+                DebugDrawCollision(agent.position, Color.red, 0.6f);
             }
 
             // 3. Check Agent Collision
             if (IsCollidingWithAgent(data.agentCollider, agent))
             {
                 data.agentCollisionTime += dt;
+                DebugDrawCollision(agent.position, Color.magenta, 0.7f);
             }
 
             // Record Trajectory
@@ -244,6 +247,14 @@ public class SocialTaskCompletionRate : MonoBehaviour
                 }
             }
         }
+    }
+
+    private void DebugDrawCollision(Vector3 center, Color color, float size)
+    {
+        Vector3 p = center + Vector3.up * 0.5f; // Lift slightly to be visible
+        Debug.DrawLine(p - Vector3.right * size, p + Vector3.right * size, color);
+        Debug.DrawLine(p - Vector3.forward * size, p + Vector3.forward * size, color);
+        Debug.DrawLine(p - Vector3.up * (size * 0.5f), p + Vector3.up * (size * 0.5f), color);
     }
 
     // Check if the agent collider overlaps any of the danger zone colliders

@@ -7851,7 +7851,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &191918278
 Transform:
   m_ObjectHideFlags: 0
@@ -24366,7 +24366,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &714124048
 Transform:
   m_ObjectHideFlags: 0
@@ -37622,7 +37622,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e46f93b8853063c408c4f3b4e456d8d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  agentPrefab: {fileID: 1826103560682691058, guid: 5785bd3964ffcc746a8f770f5dc5d9ee,
+  agentPrefab: {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab,
     type: 3}
   simulator: {fileID: 1512340413}
   resetInterval: 0.8
@@ -42235,6 +42235,7 @@ MonoBehaviour:
   searchInterval: 0.5
   dangerZonesRoot: {fileID: 272828617}
   obstaclesRoot: {fileID: 277576270}
+  testManager: {fileID: 0}
   enableTrajectoryMap: 1
   mapResolution: 2048
   mapWidth: 50
@@ -53323,6 +53324,9 @@ MonoBehaviour:
   trajectoriesTxt: {fileID: 4900000, guid: d8227315a10c6cd4fa16b5f3bd484543, type: 3}
   groupsTxt: {fileID: 4900000, guid: 47ac5accbbfa05946bcbc442f33454bb, type: 3}
   homographyTxt: {fileID: 4900000, guid: 2c6242b275d2e9f4abba9177afb3a39b, type: 3}
+  inputFormat: 0
+  ethPositionsAreWorldMeters: 1
+  ethComputeAngleFromVelocity: 1
   fps: 25
   playbackSpeed: 1
   loop: 0
@@ -53362,6 +53366,7 @@ MonoBehaviour:
   addKinematicRigidbody: 1
   drawAllTrajectories: 1
   drawTrajectoriesInEditMode: 1
+  drawTrajectoriesOnlyForActiveAgents: 0
   trajY: 0.02
   trajStride: 2
   drawTrajPoints: 0

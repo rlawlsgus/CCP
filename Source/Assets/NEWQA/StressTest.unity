@@ -483,7 +483,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &181608295
 Transform:
   m_ObjectHideFlags: 0
@@ -2906,8 +2906,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 01f93ea625cd689419158f7c252ba1f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  scenario: 3
-  agentPrefab: {fileID: 1826103560682691058, guid: 5785bd3964ffcc746a8f770f5dc5d9ee,
+  scenario: 0
+  agentPrefab: {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab,
     type: 3}
   gridSpacing: 2
   densitySpawnCount: 50
@@ -4504,7 +4504,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1396330092
 Transform:
   m_ObjectHideFlags: 0
@@ -4960,7 +4960,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1604999760
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5233,7 +5233,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1651842059
 Transform:
   m_ObjectHideFlags: 0
@@ -5450,7 +5450,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1781048659
 Transform:
   m_ObjectHideFlags: 0

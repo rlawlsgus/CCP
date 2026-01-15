@@ -59489,7 +59489,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ea6e809f470cd54ca6840157f1256ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  agentPrefab: {fileID: 1826103560682691058, guid: 5785bd3964ffcc746a8f770f5dc5d9ee,
+  agentPrefab: {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab,
     type: 3}
   simulator: {fileID: 1512340413}
   obstaclesParent: {fileID: 277576270}
@@ -59497,7 +59497,7 @@ MonoBehaviour:
   agentTimeout: 30
   maxScanDistance: 5
   outputFolder: Assets/Analysis_Output_CCP
-  fileNamePrefix: CCP_Metrics_Report
+  fileNamePrefix: CCP_CrowdMetricsReport
 --- !u!4 &1699108519
 Transform:
   m_ObjectHideFlags: 0

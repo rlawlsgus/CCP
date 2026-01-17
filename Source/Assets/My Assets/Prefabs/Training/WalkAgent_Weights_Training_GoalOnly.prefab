@@ -466,8 +466,8 @@ MonoBehaviour:
   closestAgentID: 0
   closeAgents: 0
   initial: 1
-  goalWeight: 0
-  collWeight: 0
+  goalWeight: 1.8
+  collWeight: 0.5
   groupWeight: 0
   interWeight: 0
   weightRegionColliders: []

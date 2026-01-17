@@ -471,7 +471,7 @@ MonoBehaviour:
   lastEpisodeSuccess: 0
   reachedGoal: 0
   goalWeight: 1.8
-  collWeight: 0
+  collWeight: 0.5
   groupWeight: 0
   interWeight: 0
   weightRegionColliders: []

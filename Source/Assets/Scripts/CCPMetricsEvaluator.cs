@@ -12,9 +12,10 @@ public class CCPMetricsEvaluator : MonoBehaviour
     public ZaraGroupRotationSimulator simulator;
     public Transform obstaclesParent;
     public float sampleInterval = 0.8f;
-    public float agentTimeout = 60.0f; // Agents older than this will be removed
+    public float agentTimeout = 30.0f; // Agents older than this will be removed
 
     [Header("Metrics Settings")]
+    public bool measureMetrics = true;
     public float maxScanDistance = 5.0f;
     public string outputFolder = "Assets/Analysis_Output_CCP";
     public string fileNamePrefix = "CCP_Metrics_Report";
@@ -74,6 +75,19 @@ public class CCPMetricsEvaluator : MonoBehaviour
         public Vector3 GetGoal() => _goal;
     }
 
+    public List<GameObject> GetActiveAgentGameObjects()
+    {
+        List<GameObject> agents = new List<GameObject>();
+        foreach (var kvp in activeAgents)
+        {
+            if (kvp.Value != null && kvp.Value.gameObject != null)
+            {
+                agents.Add(kvp.Value.gameObject);
+            }
+        }
+        return agents;
+    }
+
     IEnumerator Start()
     {
         // 1. Dependencies Check
@@ -104,7 +118,10 @@ public class CCPMetricsEvaluator : MonoBehaviour
         simulator.Play(); 
         
         // 3. Start Evaluation Loop
-        StartCoroutine(EvaluationLoop());
+        if (measureMetrics)
+        {
+            StartCoroutine(EvaluationLoop());
+        }
     }
 
     // Update is called once per frame
@@ -448,6 +465,9 @@ public class CCPMetricsEvaluator : MonoBehaviour
 
     void OnApplicationQuit()
     {
-        SaveReport();
+        if (measureMetrics)
+        {
+            SaveReport();
+        }
     }
 }

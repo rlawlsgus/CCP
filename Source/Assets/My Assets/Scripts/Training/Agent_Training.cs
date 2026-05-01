@@ -58,6 +58,7 @@ public class Agent_Training : Agent
     public bool pdmMode = false;
     public Transform GoalTransform;
     public bool disableOnGoal = false;
+    public List<Transform> groupMembers = new List<Transform>();
 
     private void Awake()
     {
@@ -130,10 +131,6 @@ public class Agent_Training : Agent
                 this.goalPos = GoalTransform.position;
                 this.goalDistance = Vector3.Distance(transform.position, this.goalPos);
             }
-            this.goalWeight = 1.8f;
-            this.collWeight = 2.0f;
-            this.interWeight = -5.0f;
-            this.groupWeight = -3.0f;
             this.reachedGoal = false; // [New] Reset goal status
             return;
         }

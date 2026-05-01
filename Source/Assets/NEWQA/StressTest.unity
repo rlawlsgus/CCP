@@ -1885,7 +1885,7 @@ GameObject:
   - component: {fileID: 601599627}
   - component: {fileID: 601599626}
   - component: {fileID: 601599625}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Plane
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2906,12 +2906,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 01f93ea625cd689419158f7c252ba1f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  scenario: 3
+  scenario: 1
+  agentCount: 20
   agentPrefab: {fileID: 1826103560682691058, guid: 5785bd3964ffcc746a8f770f5dc5d9ee,
     type: 3}
   gridSpacing: 2
-  densitySpawnCount: 30
-  densityAreaSize: 10
+  densitySpawnCount: 100
+  densityAreaSize: 40
   activeAgents: []
   activeGoals: []
 --- !u!1 &1018842952
@@ -4839,6 +4840,56 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1572347751}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1593804871
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1593804873}
+  - component: {fileID: 1593804872}
+  m_Layer: 0
+  m_Name: Div
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &1593804872
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1593804871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 102c02a110065a34e9f7d62e16d60d8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outputFolder: DiversityData
+  runId: 
+  minAgentID: 0
+  maxAgentID: 18
+  minRecordDistance: 0.1
+  maxDuration: 40
+--- !u!4 &1593804873
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1593804871}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1602482159
 GameObject:
   m_ObjectHideFlags: 0
@@ -4960,7 +5011,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1604999760
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4975,13 +5026,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   agentPrefabs:
   - {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab, type: 3}
+  - {fileID: 1826103560682691058, guid: 5785bd3964ffcc746a8f770f5dc5d9ee, type: 3}
   searchLayer:
     serializedVersion: 2
     m_Bits: 512
   searchInterval: 0.5
-  dangerZonesRoot: {fileID: 1396330092}
-  obstaclesRoot: {fileID: 181608295}
+  dangerZonesRoot: {fileID: 0}
+  obstaclesRoot: {fileID: 1651842059}
   testManager: {fileID: 959188555}
+  spawnManager: {fileID: 0}
+  ccpEvaluator: {fileID: 0}
+  agentsRoot: {fileID: 0}
   enableTrajectoryMap: 1
   mapResolution: 2048
   mapWidth: 50
@@ -4992,7 +5047,7 @@ MonoBehaviour:
   obstacleOutlineColor: {r: 1, g: 0.5, b: 0, a: 1}
   mapFileName: StressTrajectoryMap.png
   minRecordDistance: 0.1
-  endPointRadius: 10
+  endPointRadius: 2
 --- !u!4 &1604999761
 Transform:
   m_ObjectHideFlags: 0
@@ -5450,7 +5505,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1781048659
 Transform:
   m_ObjectHideFlags: 0
@@ -5478,16 +5533,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b9c092190d337074589224d4fd739670, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  agentTag: Agent
+  agentTag: WalkAgent
   stopOnFirstGoal: 0
   measurementRadius: 2
   densityBinMultiplier: 50
   samplingMode: 0
-  sampleInterval: 0.5
+  sampleInterval: 0.1
   sampleFrames: 10
-  minValidSpeed: 0.05
-  maxValidSpeed: 10
-  startDelay: 2
+  minValidSpeed: 0
+  maxValidSpeed: 20
+  startDelay: 1
 --- !u!1 &1821495320
 GameObject:
   m_ObjectHideFlags: 0
@@ -6580,13 +6635,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2139377871}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.5, y: 0, z: 0, w: 0.8660254}
-  m_LocalPosition: {x: 0, y: 23, z: -20}
+  m_LocalRotation: {x: 0.63673794, y: 0, z: 0, w: 0.7710803}
+  m_LocalPosition: {x: 0, y: 41.08, z: -10.93}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 60, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 79.098, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -6606,3 +6661,4 @@ SceneRoots:
   - {fileID: 1727170989}
   - {fileID: 1604999761}
   - {fileID: 1781048659}
+  - {fileID: 1593804873}

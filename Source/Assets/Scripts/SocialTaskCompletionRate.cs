@@ -23,6 +23,7 @@ public class SocialTaskCompletionRate : MonoBehaviour
     [Header("References")]
     public TestManager testManager;
     public SpawnManager spawnManager; // Added reference to SpawnManager
+    public CCPMetricsEvaluator ccpEvaluator; // Added reference to CCPMetricsEvaluator
     public Transform agentsRoot; // Added explicit root for agents
 
     [Header("Trajectory Map Settings")]
@@ -80,6 +81,11 @@ public class SocialTaskCompletionRate : MonoBehaviour
         if (spawnManager == null)
         {
             spawnManager = FindObjectOfType<SpawnManager>();
+        }
+
+        if (ccpEvaluator == null)
+        {
+            ccpEvaluator = FindObjectOfType<CCPMetricsEvaluator>();
         }
 
         // Auto-find Danger Zones if not assigned
@@ -166,6 +172,16 @@ public class SocialTaskCompletionRate : MonoBehaviour
             foreach (Transform child in spawnManager.SpawnedAgentParent)
             {
                 RegisterAgent(child);
+            }
+        }
+
+        // 3.5. Search in CCPMetricsEvaluator
+        if (ccpEvaluator != null)
+        {
+            var ccpAgents = ccpEvaluator.GetActiveAgentGameObjects();
+            foreach (var agent in ccpAgents)
+            {
+                if (agent != null) RegisterAgent(agent.transform);
             }
         }
 
@@ -454,7 +470,7 @@ public class SocialTaskCompletionRate : MonoBehaviour
             {
                 Vector2 currentPixel = WorldToPixel(path[i].position, minX, minZ);
                 Color color = path[i].isDanger ? dangerPathColor : normalPathColor;
-                DrawLine(texture, prevPixel, currentPixel, color, 3);
+                DrawLine(texture, prevPixel, currentPixel, color, 1);
                 prevPixel = currentPixel;
             }
 

@@ -13,6 +13,9 @@ public class SpawnManager : MonoBehaviour
     public GameObject agentPrefab; // Assign the CCP Agent Prefab here
     public Transform SpawnedAgentParent;
 
+    [Header("General Settings")]
+    public bool autoStart = false;
+
     [Header("Spawn Settings")]
     public string scenarioFileName = "SpawnScenario.txt";
     public bool disableAgentsOnGoal = true;
@@ -43,6 +46,14 @@ public class SpawnManager : MonoBehaviour
         public int groupSize;
     }
 
+    private void Start()
+    {
+        if (autoStart)
+        {
+            OnClickSpawn();
+        }
+    }
+
     public void OnClickSpawn()
     {
         string path = Path.Combine(Application.dataPath, "DailyScene", scenarioFileName);
@@ -53,13 +64,13 @@ public class SpawnManager : MonoBehaviour
         }
 
         string fileContent = File.ReadAllText(path);
-        
+
         // Find the start of the JSON object
         int jsonStartIndex = fileContent.IndexOf('{');
         if (jsonStartIndex == -1)
         {
-             Debug.LogError("SpawnManager: No JSON object found in scenario file.");
-             return;
+            Debug.LogError("SpawnManager: No JSON object found in scenario file.");
+            return;
         }
 
         string jsonContent = fileContent.Substring(jsonStartIndex);

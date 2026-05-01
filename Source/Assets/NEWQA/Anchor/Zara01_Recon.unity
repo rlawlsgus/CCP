@@ -16202,6 +16202,56 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 436240666}
   m_Mesh: {fileID: 4300000, guid: 1e6c3b705c9a0584b8be24361acd65ce, type: 3}
+--- !u!1 &438572064
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 438572066}
+  - component: {fileID: 438572065}
+  m_Layer: 0
+  m_Name: Div
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &438572065
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 438572064}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 102c02a110065a34e9f7d62e16d60d8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outputFolder: DiversityData
+  runId: 
+  minAgentID: 1
+  maxAgentID: 10
+  minRecordDistance: 0.1
+  maxDuration: 0
+--- !u!4 &438572066
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 438572064}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &440479568
 GameObject:
   m_ObjectHideFlags: 0
@@ -42229,6 +42279,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   agentPrefabs:
   - {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab, type: 3}
+  - {fileID: 1826103560682691058, guid: 5785bd3964ffcc746a8f770f5dc5d9ee, type: 3}
   searchLayer:
     serializedVersion: 2
     m_Bits: 512
@@ -42236,6 +42287,9 @@ MonoBehaviour:
   dangerZonesRoot: {fileID: 272828617}
   obstaclesRoot: {fileID: 277576270}
   testManager: {fileID: 0}
+  spawnManager: {fileID: 0}
+  ccpEvaluator: {fileID: 1699108518}
+  agentsRoot: {fileID: 0}
   enableTrajectoryMap: 1
   mapResolution: 2048
   mapWidth: 50
@@ -53321,6 +53375,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0df7466afb123544aa7d77ad0973cbb8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  startIdx: 1
+  finalIdx: 5
   trajectoriesTxt: {fileID: 4900000, guid: d8227315a10c6cd4fa16b5f3bd484543, type: 3}
   groupsTxt: {fileID: 4900000, guid: 47ac5accbbfa05946bcbc442f33454bb, type: 3}
   homographyTxt: {fileID: 4900000, guid: 2c6242b275d2e9f4abba9177afb3a39b, type: 3}
@@ -53331,6 +53387,7 @@ MonoBehaviour:
   playbackSpeed: 1
   loop: 0
   playOnStart: 1
+  stopOnEnd: 0
   useHomography: 1
   flipZ: 0
   flipX: 1
@@ -53366,7 +53423,7 @@ MonoBehaviour:
   addKinematicRigidbody: 1
   drawAllTrajectories: 1
   drawTrajectoriesInEditMode: 1
-  drawTrajectoriesOnlyForActiveAgents: 0
+  drawTrajectoriesOnlyForActiveAgents: 1
   trajY: 0.02
   trajStride: 2
   drawTrajPoints: 0
@@ -59471,7 +59528,7 @@ GameObject:
   - component: {fileID: 1699108519}
   - component: {fileID: 1699108518}
   m_Layer: 0
-  m_Name: Dist Analyzer
+  m_Name: Auto Spawner + Dist Analyzer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -59495,6 +59552,7 @@ MonoBehaviour:
   obstaclesParent: {fileID: 277576270}
   sampleInterval: 0.8
   agentTimeout: 30
+  measureMetrics: 0
   maxScanDistance: 5
   outputFolder: Assets/Analysis_Output_CCP
   fileNamePrefix: CCP_CrowdMetricsReport
@@ -80774,3 +80832,4 @@ SceneRoots:
   - {fileID: 272828617}
   - {fileID: 1109710092}
   - {fileID: 1699108519}
+  - {fileID: 438572066}

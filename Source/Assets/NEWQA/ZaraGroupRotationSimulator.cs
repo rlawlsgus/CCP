@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -10,6 +11,10 @@ using UnityEditor;
 
 public class ZaraGroupRotationSimulator : MonoBehaviour
 {
+    [Header("Agent Filter")]
+    public int startIdx = 0;
+    public int finalIdx = 10000;
+
     [Header("Input (TextAsset)")]
     public TextAsset trajectoriesTxt;   // Zara: id,x,y,frame,angle  OR  ETH: obsmat.txt
     public TextAsset groupsTxt;         // groups.txt
@@ -31,6 +36,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
     public float playbackSpeed = 1f;
     public bool loop = true;
     public bool playOnStart = true;
+    public bool stopOnEnd = true;
 
     [Header("World Mapping")]
     public bool useHomography = true;     // H.txt 적용 (Zara pixel->world 등)
@@ -393,10 +399,37 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
 
         ParseTrajectories(trajectoriesTxt.text);
 
+        // Calculate centroid BEFORE filtering to keep coordinates stable
+        ComputeDataCentroidWorld();
+
+        // --- Filter by ID Range (Efficiently remove unused data) ---
+        var idsToRemove = trajById.Keys.Where(id => id < startIdx || id > finalIdx).ToList();
+        foreach (var id in idsToRemove)
+        {
+            trajById.Remove(id);
+        }
+
+        // --- Recalculate Global Frames based on remaining agents ---
+        if (trajById.Count > 0)
+        {
+            globalMinFrame = int.MaxValue;
+            globalMaxFrame = int.MinValue;
+            foreach (var kv in trajById)
+            {
+                var t = kv.Value;
+                if (t.frames == null || t.frames.Length == 0) continue;
+                if (t.MinFrame < globalMinFrame) globalMinFrame = t.MinFrame;
+                if (t.MaxFrame > globalMaxFrame) globalMaxFrame = t.MaxFrame;
+            }
+        }
+        else
+        {
+            globalMinFrame = 0;
+            globalMaxFrame = 0;
+        }
+
         if (groupsTxt != null) ParseGroups(groupsTxt.text);
         BuildGroupEdges();
-
-        ComputeDataCentroidWorld();
     }
 
     TrajectoryInputFormat DetectFormat(string text)
@@ -736,14 +769,14 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
             if (anim != null) animById[id] = anim;
         }
     }
-    
+
     bool IsValidVector(Vector3 v)
     {
         return !float.IsNaN(v.x) && !float.IsInfinity(v.x) &&
                !float.IsNaN(v.y) && !float.IsInfinity(v.y) &&
                !float.IsNaN(v.z) && !float.IsInfinity(v.z);
     }
-    
+
     bool IsETHWorld()
     {
         return formatInUse == TrajectoryInputFormat.EthObsmat8 && ethPositionsAreWorldMeters;
@@ -776,7 +809,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
 
         return pos;
     }
-    
+
     Vector3 MapVelToWorldDir(Vector2 velXY)
     {
         Vector3 d = ToUnityXZ(velXY) * worldScale;
@@ -806,7 +839,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
                 return true;
             }
         }
-        
+
         float step = Mathf.Sign(playbackSpeed);
         if (Mathf.Approximately(step, 0f)) step = 1f;
 
@@ -882,8 +915,8 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
             // Sanity check for position
             if (!IsValidVector(pos))
             {
-                 // Skip update if position is invalid
-                 continue;
+                // Skip update if position is invalid
+                continue;
             }
 
             bool hasPrev = prevPosById.TryGetValue(id, out var oldPos);
@@ -943,7 +976,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
 
                 if (!lastDirById.TryGetValue(id, out var useDir) || useDir.sqrMagnitude < 1e-8f)
                     useDir = go.transform.forward;
-                
+
                 // Sanitize useDir
                 if (!IsValidVector(useDir) || useDir.sqrMagnitude < 1e-8f)
                     useDir = Vector3.forward;
@@ -967,7 +1000,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
                         curYaw, targetYaw, ref vel,
                         yawSmoothTime, Mathf.Infinity, Time.deltaTime
                     );
-                    
+
                     if (float.IsNaN(newYaw)) newYaw = targetYaw;
 
                     yawVelById[id] = vel;
@@ -1061,9 +1094,9 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
         }
         else
         {
-             // Fallback for singular w
-             x *= 10000f; // Just to make it big but not Inf? Or keep as is?
-             y *= 10000f;
+            // Fallback for singular w
+            x *= 10000f; // Just to make it big but not Inf? Or keep as is?
+            y *= 10000f;
         }
         return new Vector2(x, y);
     }
@@ -1135,11 +1168,14 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
     {
         isPlaying = false;
 
+        if (stopOnEnd)
+        {
 #if UNITY_EDITOR
-        // "Stop" 버튼 누른 것처럼 Play 모드 종료
-        if (EditorApplication.isPlaying)
-            EditorApplication.isPlaying = false;
+            // "Stop" 버튼 누른 것처럼 Play 모드 종료
+            if (EditorApplication.isPlaying)
+                EditorApplication.isPlaying = false;
 #endif
+        }
     }
 
     // ---------- Export (WORLD coordinates) ----------
@@ -1207,7 +1243,7 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
         string path = Path.Combine(Application.persistentDataPath, file);
         ExportWorldTrajectories(path, exportAngleFromMotion: true);
     }
-    
+
     [ContextMenu("Export WORLD Trajectories (S:\\home\\iiixr\\Documents)")]
     void ExportWorldToSDrive()
     {
@@ -1249,10 +1285,10 @@ public class ZaraGroupRotationSimulator : MonoBehaviour
     [Header("Trajectory Gizmos (ALL Agents)")]
     public bool drawAllTrajectories = false;
     public bool drawTrajectoriesInEditMode = true;
-    
+
     [Tooltip("Play 모드에서만 적용: 현재 activeInHierarchy인 agent의 trajectory만 그립니다.")]
     public bool drawTrajectoriesOnlyForActiveAgents = false; // ✅ NEW
-    
+
     public float trajY = 0.02f;
     [Min(1)] public int trajStride = 2;
     public bool drawTrajPoints = false;

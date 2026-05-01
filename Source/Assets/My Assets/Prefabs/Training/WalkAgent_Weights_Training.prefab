@@ -471,13 +471,14 @@ MonoBehaviour:
   lastEpisodeSuccess: 0
   reachedGoal: 0
   goalWeight: 1.8
-  collWeight: 0.5
-  groupWeight: 0
-  interWeight: 0
+  collWeight: 2
+  groupWeight: 5
+  interWeight: -5
   weightRegionColliders: []
   pdmMode: 1
   GoalTransform: {fileID: 0}
   disableOnGoal: 1
+  groupMembers: []
 --- !u!114 &2024001862751129788
 MonoBehaviour:
   m_ObjectHideFlags: 0

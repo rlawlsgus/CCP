@@ -57,6 +57,7 @@ public class Agent_GoalOnly_Training : Agent
     public bool pdmMode = false;
     public Transform GoalTransform;
     public bool disableOnGoal = false;
+    public List<Transform> groupMembers = new List<Transform>();
 
     private float[] startingWeights;
 

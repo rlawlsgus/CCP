@@ -1018,7 +1018,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &83070716
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1414,7 +1414,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 497342353}
+    m_TransformParent: {fileID: 1692042886}
     m_Modifications:
     - target: {fileID: 198914, guid: 260ea4bf1ba71314c9c3833b491586bc, type: 3}
       propertyPath: m_Name
@@ -1469,7 +1469,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 497342353}
+    m_TransformParent: {fileID: 1692042886}
     m_Modifications:
     - target: {fileID: 195910, guid: ae7b8255185ace64ca379cb1ca3b24e6, type: 3}
       propertyPath: m_Name
@@ -2714,7 +2714,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1692042886}
+    m_TransformParent: {fileID: 497342353}
     m_Modifications:
     - target: {fileID: 195910, guid: ae7b8255185ace64ca379cb1ca3b24e6, type: 3}
       propertyPath: m_Name
@@ -3528,7 +3528,7 @@ GameObject:
   - component: {fileID: 314387605}
   - component: {fileID: 314387604}
   - component: {fileID: 314387603}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Danger Zone (4)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4282,6 +4282,7 @@ MonoBehaviour:
   obstaclesRoot: {fileID: 4858211296288917910}
   testManager: {fileID: 0}
   spawnManager: {fileID: 518547058}
+  ccpEvaluator: {fileID: 0}
   agentsRoot: {fileID: 675365135}
   enableTrajectoryMap: 1
   mapResolution: 2048
@@ -4484,29 +4485,22 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 742719584}
-  - {fileID: 122152188}
+  - {fileID: 1165082453}
+  - {fileID: 268247444}
   - {fileID: 145077026}
-  - {fileID: 143512810}
   - {fileID: 326316216}
   - {fileID: 917921774}
   - {fileID: 697440302}
   - {fileID: 571267032}
-  - {fileID: 860335388}
-  - {fileID: 818188428}
   - {fileID: 531932015}
   - {fileID: 1566711263}
   - {fileID: 1443716700}
-  - {fileID: 1806039106}
   - {fileID: 1439443897}
   - {fileID: 1850532656}
   - {fileID: 1978426724}
   - {fileID: 2108317223}
   - {fileID: 1617758257}
   - {fileID: 1904364129}
-  - {fileID: 786222354}
-  - {fileID: 1362900836}
-  - {fileID: 2020719502}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &505855062
@@ -4598,6 +4592,7 @@ MonoBehaviour:
   agentPrefab: {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab,
     type: 3}
   SpawnedAgentParent: {fileID: 675365135}
+  autoStart: 1
   scenarioFileName: SpawnScenario.txt
   disableAgentsOnGoal: 1
 --- !u!4 &518547059
@@ -6214,7 +6209,7 @@ GameObject:
   - component: {fileID: 696650970}
   - component: {fileID: 696650969}
   - component: {fileID: 696650968}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Danger Zone (3)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6374,7 +6369,7 @@ GameObject:
   - component: {fileID: 699345519}
   - component: {fileID: 699345518}
   - component: {fileID: 699345517}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Danger Zone (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6793,7 +6788,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 497342353}
+    m_TransformParent: {fileID: 1692042886}
     m_Modifications:
     - target: {fileID: 198914, guid: 260ea4bf1ba71314c9c3833b491586bc, type: 3}
       propertyPath: m_Name
@@ -7347,7 +7342,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 497342353}
+    m_TransformParent: {fileID: 1692042886}
     m_Modifications:
     - target: {fileID: 183674, guid: f0924feddc9f45147a1b3b077269f520, type: 3}
       propertyPath: m_Name
@@ -7736,7 +7731,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 497342353}
+    m_TransformParent: {fileID: 1692042886}
     m_Modifications:
     - target: {fileID: 195910, guid: ae7b8255185ace64ca379cb1ca3b24e6, type: 3}
       propertyPath: m_Name
@@ -8106,7 +8101,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 497342353}
+    m_TransformParent: {fileID: 1692042886}
     m_Modifications:
     - target: {fileID: 195910, guid: ae7b8255185ace64ca379cb1ca3b24e6, type: 3}
       propertyPath: m_Name
@@ -8825,6 +8820,98 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 921380274}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &934577748
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 934577751}
+  - component: {fileID: 934577750}
+  - component: {fileID: 934577749}
+  m_Layer: 0
+  m_Name: Camera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!81 &934577749
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 934577748}
+  m_Enabled: 1
+--- !u!20 &934577750
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 934577748}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 1
+  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.3
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!4 &934577751
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 934577748}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.47755757, y: 0, z: 0, w: 0.8786005}
+  m_LocalPosition: {x: -9.8, y: 23.17, z: -24.19}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 57.052, y: 0, z: 0}
 --- !u!1001 &937515078
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -9177,7 +9264,7 @@ GameObject:
   - component: {fileID: 980823091}
   - component: {fileID: 980823090}
   - component: {fileID: 980823089}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Danger Zone (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10324,7 +10411,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1692042886}
+    m_TransformParent: {fileID: 497342353}
     m_Modifications:
     - target: {fileID: 195910, guid: ae7b8255185ace64ca379cb1ca3b24e6, type: 3}
       propertyPath: m_Name
@@ -11889,7 +11976,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 497342353}
+    m_TransformParent: {fileID: 1692042886}
     m_Modifications:
     - target: {fileID: 198914, guid: 260ea4bf1ba71314c9c3833b491586bc, type: 3}
       propertyPath: m_Name
@@ -12159,7 +12246,7 @@ GameObject:
   - component: {fileID: 1384993391}
   - component: {fileID: 1384993390}
   - component: {fileID: 1384993389}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Danger Zone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -16069,9 +16156,7 @@ Transform:
   - {fileID: 1688041452}
   - {fileID: 2083081706}
   - {fileID: 49037086}
-  - {fileID: 268247444}
   - {fileID: 872211270}
-  - {fileID: 1165082453}
   - {fileID: 1540632013}
   - {fileID: 1995307137}
   - {fileID: 294286753}
@@ -16080,6 +16165,15 @@ Transform:
   - {fileID: 1548829808}
   - {fileID: 1539732217}
   - {fileID: 877564521}
+  - {fileID: 786222354}
+  - {fileID: 1362900836}
+  - {fileID: 2020719502}
+  - {fileID: 742719584}
+  - {fileID: 122152188}
+  - {fileID: 143512810}
+  - {fileID: 860335388}
+  - {fileID: 818188428}
+  - {fileID: 1806039106}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1694307353
@@ -16923,7 +17017,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 497342353}
+    m_TransformParent: {fileID: 1692042886}
     m_Modifications:
     - target: {fileID: 195910, guid: ae7b8255185ace64ca379cb1ca3b24e6, type: 3}
       propertyPath: m_Name
@@ -18522,7 +18616,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 497342353}
+    m_TransformParent: {fileID: 1692042886}
     m_Modifications:
     - target: {fileID: 195910, guid: ae7b8255185ace64ca379cb1ca3b24e6, type: 3}
       propertyPath: m_Name
@@ -21424,3 +21518,4 @@ SceneRoots:
   - {fileID: 903136194}
   - {fileID: 4858211296288917910}
   - {fileID: 458467132}
+  - {fileID: 934577751}

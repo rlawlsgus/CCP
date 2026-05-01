@@ -7,9 +7,11 @@ using Unity.MLAgents; // Necessary for Agent reference
 public class TestManager : MonoBehaviour
 {
     public enum ScenarioType { Intersection, Intersection2, Hallway, Density }
+    public enum AgentCount { Count_3 = 3, Count_6 = 6, Count_9 = 9, Count_12 = 12, Count_20 = 20 }
 
     [Header("Settings")]
     public ScenarioType scenario = ScenarioType.Intersection;
+    public AgentCount agentCount = AgentCount.Count_9;
     public GameObject agentPrefab;
     public float gridSpacing = 2.0f; // Agent spacing
 
@@ -54,14 +56,6 @@ public class TestManager : MonoBehaviour
             // 2. Z-axis Group (Start: x=0, z=15 -> Goal: x=0, z=-15) [Straight]
             SpawnGroup(new Vector3(0, 0, 15), new Vector3(0, 0, -15), Quaternion.Euler(0, 180, 0));
         }
-        else if (scenario == ScenarioType.Intersection2)
-        {
-            // 1. X-axis Group (Start: x=15, z=0 -> Goal: x=0, z=-15) [Turn Left]
-            SpawnGroup(new Vector3(15, 0, 0), new Vector3(0, 0, -15), Quaternion.Euler(0, -90, 0));
-
-            // 2. Z-axis Group (Start: x=0, z=15 -> Goal: x=-15, z=0) [Turn Right]
-            SpawnGroup(new Vector3(0, 0, 15), new Vector3(-15, 0, 0), Quaternion.Euler(0, 180, 0));
-        }
         else if (scenario == ScenarioType.Hallway)
         {
             // 1. X-axis Right Group (Start: x=15 -> Goal: x=-15)
@@ -69,6 +63,17 @@ public class TestManager : MonoBehaviour
 
             // 2. X-axis Left Group (Start: x=-15 -> Goal: x=15)
             SpawnGroup(new Vector3(-15, 0, 0), new Vector3(15, 0, 0), Quaternion.Euler(0, 90, 0));
+        }
+        else if (scenario == ScenarioType.Intersection2)
+        {
+            // 1. West -> East
+            SpawnGroup(new Vector3(-15, 0, 0), new Vector3(15, 0, 0), Quaternion.Euler(0, 90, 0), true);
+            // 2. East -> West
+            SpawnGroup(new Vector3(15, 0, 0), new Vector3(-15, 0, 0), Quaternion.Euler(0, -90, 0), true);
+            // 3. North -> South
+            SpawnGroup(new Vector3(0, 0, 15), new Vector3(0, 0, -15), Quaternion.Euler(0, 180, 0), true);
+            // 4. South -> North
+            SpawnGroup(new Vector3(0, 0, -15), new Vector3(0, 0, 15), Quaternion.Euler(0, 0, 0), true);
         }
         else if (scenario == ScenarioType.Density)
         {
@@ -153,37 +158,79 @@ public class TestManager : MonoBehaviour
         }
     }
 
-    void SpawnGroup(Vector3 centerPos, Vector3 targetPos, Quaternion initialRotation)
+    void SpawnGroup(Vector3 centerPos, Vector3 targetPos, Quaternion initialRotation, bool useRandomness = false)
     {
-        // 3x3 Grid
-        int rows = 3;
-        int cols = 3;
+        // widthCount is fixed to 3 (across the direction of travel)
+        // depthCount depends on the total agentCount
+        int total = (int)agentCount;
+        int widthCount = (total == 20) ? 4 : 3;
+        int depthCount = total / widthCount;
 
-        // Calculate start point so centerPos is the center of the grid
-        float startX = centerPos.x - (cols - 1) * gridSpacing * 0.5f;
-        float startZ = centerPos.z - (rows - 1) * gridSpacing * 0.5f;
-
-        for (int r = 0; r < rows; r++)
+        // 1. Generate all target grid offsets
+        List<Vector3> targetOffsets = new List<Vector3>();
+        for (int d = 0; d < depthCount; d++)
         {
-            for (int c = 0; c < cols; c++)
+            for (int w = 0; w < widthCount; w++)
             {
-                Vector3 spawnPos = new Vector3(
-                    startX + c * gridSpacing,
-                    0.05f, // Slightly above ground
-                    startZ + r * gridSpacing
-                );
+                float lx = (w - (widthCount - 1) * 0.5f) * gridSpacing;
+                float lz = (d - (depthCount - 1) * 0.5f) * gridSpacing;
+                targetOffsets.Add(new Vector3(lx, 0, lz));
+            }
+        }
+
+        // 2. Shuffle target offsets if randomness is requested
+        if (useRandomness)
+        {
+            for (int i = 0; i < targetOffsets.Count; i++)
+            {
+                Vector3 temp = targetOffsets[i];
+                int randomIndex = Random.Range(i, targetOffsets.Count);
+                targetOffsets[i] = targetOffsets[randomIndex];
+                targetOffsets[randomIndex] = temp;
+            }
+        }
+
+        int agentIndex = 0;
+
+        for (int d = 0; d < depthCount; d++)
+        {
+            for (int w = 0; w < widthCount; w++)
+            {
+                // Local coordinates:
+                // x is across the direction of travel (width)
+                // z is along the direction of travel (depth)
+                float localX = (w - (widthCount - 1) * 0.5f) * gridSpacing;
+                float localZ = (d - (depthCount - 1) * 0.5f) * gridSpacing;
+
+                // Add jitter to spawn position if requested
+                if (useRandomness)
+                {
+                    localX += Random.Range(-gridSpacing * 0.3f, gridSpacing * 0.3f);
+                    localZ += Random.Range(-gridSpacing * 0.3f, gridSpacing * 0.3f);
+                }
+
+                Vector3 localOffset = new Vector3(localX, 0, localZ);
+                Vector3 worldOffset = initialRotation * localOffset;
+
+                Vector3 spawnPos = centerPos + worldOffset;
+                spawnPos.y = 0.05f;
 
                 GameObject agent = Instantiate(agentPrefab, spawnPos, initialRotation);
                 agent.name = $"{agentPrefab.name}_{activeAgents.Count}";
 
                 // Goal Object
                 // Apply relative offset from spawn center to target center
-                Vector3 offset = spawnPos - centerPos;
-                Vector3 finalGoalPos = targetPos + offset;
+                Vector3 targetLocalOffset = targetOffsets[agentIndex];
+                Vector3 targetWorldOffset = initialRotation * targetLocalOffset;
+
+                Vector3 finalGoalPos = targetPos + targetWorldOffset;
+                finalGoalPos.y = 0.05f;
 
                 GameObject goalObj = new GameObject($"{agent.name}_Goal");
                 goalObj.transform.position = finalGoalPos;
                 activeGoals.Add(goalObj.transform);
+
+                agentIndex++;
 
                 // Setup Agent
                 SetupAgent(agent, goalObj.transform);

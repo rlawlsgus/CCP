@@ -45,6 +45,9 @@ public class CCP_SRVRManager : MonoBehaviour
     public bool logHitTags = false;
     private bool _hasExported = false;
 
+    [Header("Inference Options")]
+    public bool stopOnCollision = false;
+
     [Header("Trajectory Map Settings")]
     public bool enableTrajectoryMap = true;
     public bool drawOnlyTail = false;
@@ -182,6 +185,7 @@ public class CCP_SRVRManager : MonoBehaviour
                 if (col != null && col.enabled && IsOverlapping(data.agentCollider, col)) { hitDanger = true; break; }
             if (hitDanger) data.dangerZoneTime += dt;
 
+            bool hitOther = false;
             Collider[] nearby = Physics.OverlapSphere(agentColPos, agentRadius + 0.5f);
             foreach (var col in nearby)
             {
@@ -189,12 +193,28 @@ public class CCP_SRVRManager : MonoBehaviour
                 if (IsOverlapping(data.agentCollider, col))
                 {
                     string tag = col.tag;
-                    if (tag == agentTag || tag == "Agent" || col.GetComponentInParent<Agent_Training>() != null || col.GetComponentInParent<Agent_GoalOnly_Training>() != null) 
-                        data.agentCollisionTime += dt;
-                    else if (tag == vehicleTag) data.vehicleCollisionTime += dt;
-                    else if (tag == doorTag) data.doorCollisionTime += dt;
-                    else if (tag == obstacleTag || tag == buildingTag || obstacleColliders.Contains(col)) data.staticObstacleTime += dt;
+                    bool isAgent = tag == agentTag || tag == "Agent" || col.GetComponentInParent<Agent_Training>() != null || col.GetComponentInParent<Agent_GoalOnly_Training>() != null;
+                    bool isVehicle = tag == vehicleTag;
+                    bool isDoor = tag == doorTag;
+                    bool isObstacle = tag == obstacleTag || tag == buildingTag || obstacleColliders.Contains(col);
+
+                    if (isAgent) { data.agentCollisionTime += dt; hitOther = true; }
+                    else if (isVehicle) { data.vehicleCollisionTime += dt; hitOther = true; }
+                    else if (isDoor) { data.doorCollisionTime += dt; hitOther = true; }
+                    else if (isObstacle) { data.staticObstacleTime += dt; hitOther = true; }
                 }
+            }
+
+            if (stopOnCollision && hitOther)
+            {
+                data.isFinished = true;
+                data.hasReachedGoal = false;
+                if (data.agentObject != null)
+                {
+                    data.agentObject.SetActive(false);
+                }
+                if (verbose) Debug.Log($"[CCP_SRVRManager] Agent {agentTransform.name} stopped due to collision.");
+                continue;
             }
 
             List<Transform> members = null;

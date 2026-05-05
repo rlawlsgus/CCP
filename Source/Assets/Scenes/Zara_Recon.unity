@@ -14535,7 +14535,7 @@ MonoBehaviour:
   agentPrefab: {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab,
     type: 3}
   agentsRoot: {fileID: 2101106391}
-  scenarioJsonFile: {fileID: 4900000, guid: cac20953a7ebd334294b42400cc4d133, type: 3}
+  scenarioJsonFile: {fileID: 4900000, guid: 96dba9c9b8df41c4dbb22b86df97f5ba, type: 3}
   spawnOnStart: 1
   disableAgentsOnGoal: 1
   spawnedAgents: []
@@ -25993,7 +25993,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &674090793
 Transform:
   m_ObjectHideFlags: 0
@@ -27337,8 +27337,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 721182773}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: 31, z: 0}
+  m_LocalRotation: {x: 0.4694715, y: 0, z: 0, w: 0.8829476}
+  m_LocalPosition: {x: 0.86, y: 22.4, z: -20.4}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -28830,7 +28830,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &776595020
 Transform:
   m_ObjectHideFlags: 0
@@ -28865,6 +28865,7 @@ MonoBehaviour:
   saveSubFolder: MetricsLogs
   verbose: 1
   logHitTags: 0
+  stopOnCollision: 0
   enableTrajectoryMap: 1
   drawOnlyTail: 0
   trajectoryTailSeconds: 5
@@ -50998,7 +50999,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1364108445
 Transform:
   m_ObjectHideFlags: 0
@@ -76442,6 +76443,57 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2035032566}
   m_Mesh: {fileID: 4300000, guid: c2eac8a3bde6a92458c72830f63d161f, type: 3}
+--- !u!1 &2036262843
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2036262845}
+  - component: {fileID: 2036262844}
+  m_Layer: 0
+  m_Name: Scenario Manager_Big Group
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &2036262844
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2036262843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4e87dd727c918c4482b1b4cf6d11885, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  agentPrefab: {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab,
+    type: 3}
+  agentsRoot: {fileID: 2101106391}
+  scenarioJsonFile: {fileID: 4900000, guid: cac20953a7ebd334294b42400cc4d133, type: 3}
+  spawnOnStart: 1
+  disableAgentsOnGoal: 1
+  spawnedAgents: []
+--- !u!4 &2036262845
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2036262843}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -15.689766, y: -2.5543363, z: 9.544385}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2037856446
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -84780,6 +84832,7 @@ SceneRoots:
   - {fileID: 2101106391}
   - {fileID: 472292485}
   - {fileID: 364028956}
+  - {fileID: 2036262845}
   - {fileID: 992905750}
   - {fileID: 1364108445}
   - {fileID: 674090793}

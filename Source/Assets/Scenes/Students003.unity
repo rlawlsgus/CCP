@@ -14073,7 +14073,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &414878976
 Transform:
   m_ObjectHideFlags: 0
@@ -14108,6 +14108,7 @@ MonoBehaviour:
   saveSubFolder: MetricsLogs
   verbose: 1
   logHitTags: 0
+  stopOnCollision: 0
   enableTrajectoryMap: 1
   drawOnlyTail: 0
   trajectoryTailSeconds: 5
@@ -17987,6 +17988,62 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 539871662}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &541640565
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 541640567}
+  - component: {fileID: 541640566}
+  m_Layer: 0
+  m_Name: PDM
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &541640566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 541640565}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e46f93b8853063c408c4f3b4e456d8d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  agentPrefab: {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab,
+    type: 3}
+  simulator: {fileID: 1286518277}
+  resetInterval: 0.8
+  generateMap: 1
+  mapFileName: PDMTrajectoryMap2.png
+  mapResolution: 2048
+  mapSize: 30
+  gtColor: {r: 0, g: 0, b: 1, a: 1}
+  agentColor: {r: 1, g: 0, b: 0, a: 1}
+  obstacleColor: {r: 1, g: 0.5, b: 0, a: 1}
+  agentCheckInterval: 0.5
+--- !u!4 &541640567
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 541640565}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -6.81, y: 1.34, z: 3.03}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &544836651
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -24064,8 +24121,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 721182773}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.46390584, y: 0.0018541813, z: -0.0009710468, w: -0.8858821}
-  m_LocalPosition: {x: 7.1683826, y: 14.135783, z: -2.627751}
+  m_LocalRotation: {x: 0.46174863, y: 0, z: 0, w: 0.8870109}
+  m_LocalPosition: {x: 7.2, y: 14.1, z: -2.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -30247,6 +30304,68 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 889183152}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &889290150
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 889290152}
+  - component: {fileID: 889290151}
+  m_Layer: 0
+  m_Name: ADE Manager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &889290151
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 889290150}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eae057ce6847f4145bbb331967c68d86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  simAgentPrefab: {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab,
+    type: 3}
+  simAgentsRoot: {fileID: 251084797}
+  trajectoriesTxt: {fileID: 4900000, guid: c411c79c8ef62df4e8c41572b62e0511, type: 3}
+  homographyTxt: {fileID: 4900000, guid: bd6d83276b31249448b715052d31d169, type: 3}
+  groupsTxt: {fileID: 4900000, guid: 853ef67dd34590049839f08029cb2357, type: 3}
+  useHomography: 1
+  flipX: 0
+  flipZ: 0
+  worldScale: 1
+  worldOffset: {x: 0, y: 0, z: 0}
+  rotateInWorld: 1
+  rotateDeg: 0
+  pivotMode: 2
+  customPivotWorld: {x: 0, y: 0, z: 0}
+  evaluationInterval: 20
+  saveSubFolder: MetricsLogs
+  verbose: 1
+--- !u!4 &889290152
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 889290150}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &889611085
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -43859,7 +43978,7 @@ MonoBehaviour:
   customPivotWorld: {x: 0, y: 0, z: 0}
   agentPrefab: {fileID: 6867030694223712811, guid: db39924e707d21046a7f908b937bb7da,
     type: 3}
-  hideAgents: 0
+  hideAgents: 1
   agentSize: 0.7
   applyYawFromAngle: 1
   yawOffsetDeg: 0
@@ -55786,7 +55905,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1615174809
 Transform:
   m_ObjectHideFlags: 0
@@ -57894,7 +58013,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1681851710
 Transform:
   m_ObjectHideFlags: 0
@@ -72839,3 +72958,5 @@ SceneRoots:
   - {fileID: 414878976}
   - {fileID: 1681851710}
   - {fileID: 1615174809}
+  - {fileID: 889290152}
+  - {fileID: 541640567}

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -309,18 +310,31 @@ public class PDMEvaluator : MonoBehaviour
     {
         if (adeList.Count > 0)
         {
-            Debug.Log($"[PDM Report] ADE (Average Displacement Error): {adeList.Average():F4} meters (over {adeList.Count} intervals)");
+            float avgAde = adeList.Average();
+            float stdAde = CalculateStdDev(adeList, avgAde);
+            float ci95Ade = 1.96f * (stdAde / Mathf.Sqrt(adeList.Count));
+            Debug.Log($"[PDM Report] ADE (Average Displacement Error): {avgAde:F4} ± {ci95Ade:F4} meters (95% CI, over {adeList.Count} intervals)");
         }
         
         if (fdeList.Count > 0)
         {
-            Debug.Log($"[PDM Report] FDE (Final Displacement Error): {fdeList.Average():F4} meters (over {fdeList.Count} intervals)");
+            float avgFde = fdeList.Average();
+            float stdFde = CalculateStdDev(fdeList, avgFde);
+            float ci95Fde = 1.96f * (stdFde / Mathf.Sqrt(fdeList.Count));
+            Debug.Log($"[PDM Report] FDE (Final Displacement Error): {avgFde:F4} ± {ci95Fde:F4} meters (95% CI, over {fdeList.Count} intervals)");
         }
 
         if (generateMap)
         {
             GenerateMap();
         }
+    }
+
+    float CalculateStdDev(List<float> values, float mean)
+    {
+        if (values.Count <= 1) return 0;
+        double sum = values.Sum(v => Math.Pow(v - mean, 2));
+        return (float)Math.Sqrt(sum / values.Count);
     }
 
     void GenerateMap()

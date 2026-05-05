@@ -45,6 +45,7 @@ public class CCP_ADEManager : MonoBehaviour
 
     private Dictionary<int, int> agentStartFrames = new Dictionary<int, int>();
     private Dictionary<int, GameObject> spawnedAgents = new Dictionary<int, GameObject>();
+    private Queue<GameObject> agentPool = new Queue<GameObject>();
 
     private Dictionary<int, AgentMetrics> agentMetricsMap = new Dictionary<int, AgentMetrics>();
     private List<float> allSegmentADEs = new List<float>();
@@ -191,6 +192,57 @@ public class CCP_ADEManager : MonoBehaviour
         }
     }
 
+    GameObject GetAgentFromPool(Vector3 pos, Quaternion rot)
+    {
+        GameObject go;
+        if (agentPool.Count > 0)
+        {
+            go = agentPool.Dequeue();
+            go.transform.position = pos;
+            go.transform.rotation = rot;
+            go.SetActive(true);
+        }
+        else
+        {
+            go = Instantiate(simAgentPrefab, pos, rot, simAgentsRoot);
+        }
+        return go;
+    }
+
+    void ReturnAgentToPool(int id, GameObject go)
+    {
+        if (go == null) return;
+
+        // Clean up group references in other agents
+        if (groupMap.TryGetValue(id, out List<int> memberIds))
+        {
+            foreach (int mId in memberIds)
+            {
+                if (mId == id) continue;
+                if (spawnedAgents.TryGetValue(mId, out GameObject memberGo))
+                {
+                    if (memberGo == null) continue;
+                    var mAt = memberGo.GetComponent<Agent_Training>();
+                    var mAgo = memberGo.GetComponent<Agent_GoalOnly_Training>();
+                    if (mAt != null) mAt.groupMembers.Remove(go.transform);
+                    else if (mAgo != null) mAgo.groupMembers.Remove(go.transform);
+                }
+            }
+        }
+
+        // Clean up self
+        var at = go.GetComponent<Agent_Training>();
+        var ago = go.GetComponent<Agent_GoalOnly_Training>();
+        if (at != null) at.groupMembers.Clear();
+        else if (ago != null) ago.groupMembers.Clear();
+
+        var trail = go.GetComponent<TrailRenderer>();
+        if (trail != null) trail.Clear();
+
+        go.SetActive(false);
+        agentPool.Enqueue(go);
+    }
+
     void CheckAndSpawnAgents(int frame)
     {
         if (simAgentPrefab == null) return;
@@ -205,7 +257,8 @@ public class CCP_ADEManager : MonoBehaviour
                 if (!gtData[id].posByFrame.ContainsKey(startFrame)) continue;
                 Vector2 rawXY = gtData[id].posByFrame[startFrame];
                 Vector3 spawnPos = RawToWorld(rawXY, pivot);
-                GameObject go = Instantiate(simAgentPrefab, spawnPos, Quaternion.identity, simAgentsRoot);
+                
+                GameObject go = GetAgentFromPool(spawnPos, Quaternion.identity);
                 go.name = $"ped_{id}_Sim";
                 spawnedAgents[id] = go;
 
@@ -266,7 +319,7 @@ public class CCP_ADEManager : MonoBehaviour
             {
                 if (agentMetricsMap.ContainsKey(id) && agentMetricsMap[id].currentFrameCount > 0) agentMetricsMap[id].Calculate();
                 spawnedAgents.Remove(id);
-                Destroy(go);
+                ReturnAgentToPool(id, go);
             }
         }
     }

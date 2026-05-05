@@ -472,7 +472,7 @@ MonoBehaviour:
   reachedGoal: 0
   goalWeight: 1.8
   collWeight: 2
-  groupWeight: 5
+  groupWeight: 0
   interWeight: -5
   weightRegionColliders: []
   pdmMode: 1
@@ -558,7 +558,7 @@ TrailRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1826103560682691058}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1

@@ -65,8 +65,10 @@ public class CCP_ADEManager : MonoBehaviour
         public int totalSegments;
         public float meanADE;
         public float stdDevADE;
+        public float confidenceIntervalADE;
         public float meanFDE;
         public float stdDevFDE;
+        public float confidenceIntervalFDE;
     }
 
     public class AgentMetrics
@@ -363,22 +365,34 @@ public class CCP_ADEManager : MonoBehaviour
     {
         if (allSegmentADEs.Count == 0 || hasExported) return;
         hasExported = true;
-        float meanADE = allSegmentADEs.Average(); float meanFDE = allSegmentFDEs.Average();
+        
+        int n = allSegmentADEs.Count;
+        float meanADE = allSegmentADEs.Average(); 
+        float meanFDE = allSegmentFDEs.Average();
+        float stdDevADE = CalculateStdDev(allSegmentADEs, meanADE);
+        float stdDevFDE = CalculateStdDev(allSegmentFDEs, meanFDE);
+        
+        // 95% Confidence Interval: 1.96 * (StdDev / sqrt(N))
+        float ciADE = n > 0 ? 1.96f * (stdDevADE / (float)Math.Sqrt(n)) : 0f;
+        float ciFDE = n > 0 ? 1.96f * (stdDevFDE / (float)Math.Sqrt(n)) : 0f;
+
         FinalMetricsReport report = new FinalMetricsReport
         {
             sceneName = SceneManager.GetActiveScene().name,
             date = DateTime.Now.ToString("yyyy-MM-dd"),
             time = DateTime.Now.ToString("HH-mm-ss"),
-            totalSegments = allSegmentADEs.Count,
+            totalSegments = n,
             meanADE = meanADE,
+            stdDevADE = stdDevADE,
+            confidenceIntervalADE = ciADE,
             meanFDE = meanFDE,
-            stdDevADE = CalculateStdDev(allSegmentADEs, meanADE),
-            stdDevFDE = CalculateStdDev(allSegmentFDEs, meanFDE)
+            stdDevFDE = stdDevFDE,
+            confidenceIntervalFDE = ciFDE
         };
         string path = Path.Combine(Application.dataPath, "..", saveSubFolder);
         if (!Directory.Exists(path)) Directory.CreateDirectory(path);
         File.WriteAllText(Path.Combine(path, $"{report.sceneName}_{report.date}_{report.time}_ADEMetrics.json"), JsonUtility.ToJson(report, true));
-        Debug.Log($"[CCP_ADEManager] Exported Final ADE/FDE Results to {path}");
+        Debug.Log($"[CCP_ADEManager] Exported Final ADE/FDE Results to {path} (with 95% CI)");
     }
 
     float CalculateStdDev(List<float> values, float mean)

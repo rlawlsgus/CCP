@@ -4271,19 +4271,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00c43ded57e277448b2cf2a934d7b503, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  agentPrefabs:
-  - {fileID: 1826103560682691058, guid: 731bd6324ec46f746a616293c42469ab, type: 3}
-  - {fileID: 1826103560682691058, guid: 5785bd3964ffcc746a8f770f5dc5d9ee, type: 3}
-  searchLayer:
-    serializedVersion: 2
-    m_Bits: 512
+  agentsRoot: {fileID: 675365135}
   searchInterval: 0.5
   dangerZonesRoot: {fileID: 903136194}
   obstaclesRoot: {fileID: 4858211296288917910}
-  testManager: {fileID: 0}
-  spawnManager: {fileID: 518547058}
-  ccpEvaluator: {fileID: 0}
-  agentsRoot: {fileID: 675365135}
+  enableSocialContextMetrics: 1
+  useXZPlaneForSocialMetrics: 1
+  subtractApproxAgentRadiusFromNearestDistance: 0
+  ttcCollisionRadius: 0
+  lowTTCThreshold: 2
+  minRelativeSpeedForTTC: 0.05
+  maxTTCToRecord: 10
+  enableNavigationPerformanceMetrics: 1
+  useXZPlaneForPathLength: 1
+  continuePathLengthAfterGoal: 0
+  enableSTEMetric: 1
+  steNormalizationMode: 2
+  sceneAverageTimeToGoalForSTE: 0
+  sceneAveragePathLengthForSTE: 0
+  rawSTEScale: 100
+  steDecimalPlaces: 3
   enableTrajectoryMap: 1
   mapResolution: 2048
   mapWidth: 55
@@ -4593,8 +4600,9 @@ MonoBehaviour:
     type: 3}
   SpawnedAgentParent: {fileID: 675365135}
   autoStart: 1
-  scenarioFileName: SpawnScenario.txt
+  scenarioFileName: SpawnScenario_2.txt
   disableAgentsOnGoal: 1
+  yOffset: 0.4
 --- !u!4 &518547059
 Transform:
   m_ObjectHideFlags: 0
@@ -8845,7 +8853,7 @@ AudioListener:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 934577748}
-  m_Enabled: 1
+  m_Enabled: 0
 --- !u!20 &934577750
 Camera:
   m_ObjectHideFlags: 0

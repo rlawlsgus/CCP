@@ -13,6 +13,7 @@ public class TestManager : MonoBehaviour
     public ScenarioType scenario = ScenarioType.Intersection;
     public AgentCount agentCount = AgentCount.Count_9;
     public GameObject agentPrefab;
+    public Transform agentRoot;
     public float gridSpacing = 2.0f; // Agent spacing
 
     [Header("Density Scenario Settings")]
@@ -143,11 +144,12 @@ public class TestManager : MonoBehaviour
             Quaternion initialRot = Quaternion.identity;
             if (dir != Vector3.zero) initialRot = Quaternion.LookRotation(dir);
 
-            GameObject agent = Instantiate(agentPrefab, spawnPos, initialRot);
+            GameObject agent = Instantiate(agentPrefab, spawnPos, initialRot, agentRoot);
             agent.name = $"{agentPrefab.name}_{activeAgents.Count}";
 
             // 4. Setup Goal
             GameObject goalObj = new GameObject($"{agent.name}_Goal");
+            if (agentRoot != null) goalObj.transform.SetParent(agentRoot);
             goalObj.transform.position = goalPos;
             activeGoals.Add(goalObj.transform);
 
@@ -215,7 +217,7 @@ public class TestManager : MonoBehaviour
                 Vector3 spawnPos = centerPos + worldOffset;
                 spawnPos.y = 0.05f;
 
-                GameObject agent = Instantiate(agentPrefab, spawnPos, initialRotation);
+                GameObject agent = Instantiate(agentPrefab, spawnPos, initialRotation, agentRoot);
                 agent.name = $"{agentPrefab.name}_{activeAgents.Count}";
 
                 // Goal Object
@@ -227,6 +229,7 @@ public class TestManager : MonoBehaviour
                 finalGoalPos.y = 0.05f;
 
                 GameObject goalObj = new GameObject($"{agent.name}_Goal");
+                if (agentRoot != null) goalObj.transform.SetParent(agentRoot);
                 goalObj.transform.position = finalGoalPos;
                 activeGoals.Add(goalObj.transform);
 

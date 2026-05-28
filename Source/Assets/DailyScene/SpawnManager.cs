@@ -19,6 +19,7 @@ public class SpawnManager : MonoBehaviour
     [Header("Spawn Settings")]
     public string scenarioFileName = "SpawnScenario.txt";
     public bool disableAgentsOnGoal = true;
+    public float yOffset = 0.0f;
 
     // Data classes matching the JSON structure
     [System.Serializable]
@@ -103,8 +104,8 @@ public class SpawnManager : MonoBehaviour
 
     void SpawnCCPAgent(AgentInfo info)
     {
-        Vector3 spawnPos = new Vector3(info.position[0], info.position[1], info.position[2]);
-        Vector3 goalPos = new Vector3(info.goalPosition[0], info.goalPosition[1], info.goalPosition[2]);
+        Vector3 spawnPos = new Vector3(info.position[0], info.position[1] + yOffset, info.position[2]);
+        Vector3 goalPos = new Vector3(info.goalPosition[0], info.goalPosition[1] + yOffset, info.goalPosition[2]);
 
         // Create Agent
         GameObject agentObj = Instantiate(agentPrefab, spawnPos, Quaternion.identity);
